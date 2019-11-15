@@ -7,8 +7,8 @@ descendo: .asciz "Descendo..."
 
 .section .text
 
-.globl _start
-_start:
+.globl main
+main:
   pushl $divide_tela
   call printf
   popl divide_tela
