@@ -6,12 +6,10 @@ subindo:                .asciz "Subindo..."
 descendo:               .asciz "Descendo..."
 insira_andares:         .asciz "\nInsira a quantidade de andares: "
 insira_probabilidade:   .asciz "\nInsira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
-formato_float:          .asciz "%f"
 formato_int:            .asciz "%d"
-string_teste:           .asciz "\nTeste leitura valores: %d e %f\n"
+string_teste:           .asciz "\nTeste leitura valores: %d e %d\n"
 qtd_andares:            .int 0
-probabilidade_evento:   .float 0
-
+probabilidade_evento:   .int 0
 
 .section .text
 
@@ -26,8 +24,6 @@ main:
   addl  $4,  %esp # caminha para o endereço da string divide_tela
   call printf # chamada externa ao printf
 
-  addl  $4, %esp # caminha na pilha para descartar as strings divide_tela e titulo
-
   pushl $insira_andares # insere a string insira_andares na pilha
   call printf # chamada externa ao printf
 
@@ -35,18 +31,16 @@ main:
   pushl $formato_int # insere o formatador de inteiro na pilha
   call scanf # chamada externa ao scanf
 
-  addl $8, %esp # descarta os endereços de qtd_andares e formato_int da pilha
-
   pushl $probabilidade_evento # insere na pilha variável onde a probabilidade sera armazenada
-  pushl $formato_float # insere o formatador de float na pilha
+  pushl $formato_int # insere o formatador de float na pilha
   call scanf # chamada externa ao scanf
-
-  addl $8, %esp # descarta os endereços de probabilidade_evento e formato_float da pilha
 
   pushl probabilidade_evento
   pushl qtd_andares
   pushl $string_teste
   call printf
+
+  addl $24, %esp
 
   pushl $0
   call  exit
