@@ -31,16 +31,14 @@ main:
   pushl $formato_int # insere o formatador de inteiro na pilha
   call scanf # chamada externa ao scanf
 
+  pushl $insira_probabilidade # insere a string insira_probabilidade na pilha
+  call printf # chamada externa ao printf
+
   pushl $probabilidade_evento # insere na pilha variável onde a probabilidade sera armazenada
   pushl $formato_int # insere o formatador de float na pilha
   call scanf # chamada externa ao scanf
 
-  pushl probabilidade_evento
-  pushl qtd_andares
-  pushl $string_teste
-  call printf
-
-  addl $24, %esp
+  addl $28, %esp # limpa a pilha
 
   pushl $0
   call  exit
