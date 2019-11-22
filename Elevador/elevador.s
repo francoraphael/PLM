@@ -40,5 +40,23 @@ main:
 
   addl $28, %esp # limpa a pilha
 
-  pushl $0
-  call  exit
+  movl $0, %ecx # seta %ecx para rodar loop infinito
+
+  loop_infinito: # rotulo para loop infinito do elevador
+    incl %ecx # incrementa %ecx em 1
+
+    pushl $divide_tela # insere string divide_tela na pilha
+    call  printf # chamada externa ao printf
+    addl $4, %esp
+
+    # INFOS SOBRE O ESTADO DO ELEVADOR DEVEM SER COLOCADAS AQUI
+
+    pushl $divide_tela # insere string divide_tela na pilha
+    call  printf # chamada externa ao printf
+    addl $4, %esp
+
+    loop loop_infinito # verifica se %ecx e maior que 0, se for, vai para loop_infinito
+
+  fim:
+    pushl $0
+    call  exit
