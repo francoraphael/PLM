@@ -6,15 +6,42 @@ subindo:                .asciz "Subindo..."
 descendo:               .asciz "Descendo..."
 insira_andares:         .asciz "\nInsira a quantidade de andares: "
 insira_probabilidade:   .asciz "\nInsira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
+pessoas_saindo:         .asciz "\n%d pessoa(s) saindo do elevador"
+pessoas_entrando:       .asciz "\n%d pessoa(s) entrando no elevador"
 formato_int:            .asciz "%d"
 string_teste:           .asciz "\nTeste leitura valores: %d e %d\n"
 qtd_andares:            .int 0
+qtd_pessoas:            .int 0
 probabilidade_evento:   .int 0
+direcao:                .int 0 # SUBINDO (0) ou DESCENDO (1)
+andar_atual:            .int 0
+string_debug:           .asciz "\n Teste: %d"
+
+.section .bss
+
+.lcomm lista_externa, 120
+.lcomm lista_interna, 120
 
 .section .text
 
+verifica_lista_interna:
+  movl $lista_interna, %edi
+  movl 4(%edi), %ecx
+  pushl %ecx
+  pushl $string_debug
+  call printf
+  cmpl $0, %ecx
+  jle retorno
+  pushl 
+retorno:
+  ret
+
 .globl main
 main:
+  movl $lista_interna, %edi
+  movl $23, 4(%edi)
+  movl $50, 8(%edi)
+
   pushl $divide_tela # insere string divide_tela na pilha
   call  printf # chamada externa ao printf
 
@@ -49,12 +76,14 @@ main:
     call  printf # chamada externa ao printf
     addl $4, %esp
 
+    call verifica_lista_interna
     # INFOS SOBRE O ESTADO DO ELEVADOR DEVEM SER COLOCADAS AQUI
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
     addl $4, %esp
-
+    
+    jmp fim
     loop loop_infinito # verifica se %ecx e maior que 0, se for, vai para loop_infinito
 
   fim:
