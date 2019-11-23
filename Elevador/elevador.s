@@ -8,14 +8,16 @@ insira_andares:         .asciz "\nInsira a quantidade de andares: "
 insira_probabilidade:   .asciz "\nInsira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
 pessoas_saindo:         .asciz "\n%d pessoa(s) saindo do elevador"
 pessoas_entrando:       .asciz "\n%d pessoa(s) entrando no elevador"
+pessoas_no_elevador:    .asciz "\n%d pessoa(s) dentro do elevador"
 formato_int:            .asciz "%d"
 string_teste:           .asciz "\nTeste leitura valores: %d e %d\n"
 qtd_andares:            .int 0
-qtd_pessoas:            .int 0
+qtd_pessoas_elevador:   .int 3
 probabilidade_evento:   .int 0
 direcao:                .int 0 # SUBINDO (0) ou DESCENDO (1)
 andar_atual:            .int 0
 string_debug:           .asciz "\n Teste: %d"
+string_debug_2:         .asciz "\n Teste: %X"
 
 .section .bss
 
@@ -25,22 +27,29 @@ string_debug:           .asciz "\n Teste: %d"
 .section .text
 
 verifica_lista_interna:
-  movl $lista_interna, %edi
-  movl 4(%edi), %ecx
-  pushl %ecx
-  pushl $string_debug
-  call printf
-  cmpl $0, %ecx
-  jle retorno
-  pushl 
+  movl $0x4, %eax # move 4 para eax
+  movl andar_atual, %ebx # colocar o valor da qtd de andares em ebx
+  mull %ebx # eax = eax * ebx || isso eh pra calcular o offset em bytes a ser andado na lista
+  movl $lista_interna, %edi # move o inicio da lista para edi
+  addl %eax, %edi # caminha na lista interna para o andar atual
+  cmpl $0, (%edi) # verifica se existe alguem que deseja sair naquele andar
+  jle retorno # caso nao exista, sai da funcao
+  movl qtd_pessoas_elevador, %ebx # move qtd_pessoas_elevador para ebx
+  subl (%edi), %ebx # qtd_pessoas_elevador = qtd_pessoas_elevador - qtd_pessoas_saindo
+  movl %ebx, qtd_pessoas_elevador # atualiza qtd_pessoas_elevador
+  pushl (%edi) # poem qtd_pessoa_saindo na pilha
+  pushl $pessoas_saindo # poem string para exibir qtd pessoas saindo na pilha
+  call printf # chamada externa printf
+  addl $8, %esp # limpa pilha
+  ret # retorna
 retorno:
   ret
 
 .globl main
 main:
   movl $lista_interna, %edi
-  movl $23, 4(%edi)
-  movl $50, 8(%edi)
+  movl $2, (%edi)
+  movl $1, 4(%edi)
 
   pushl $divide_tela # insere string divide_tela na pilha
   call  printf # chamada externa ao printf
@@ -76,7 +85,14 @@ main:
     call  printf # chamada externa ao printf
     addl $4, %esp
 
-    call verifica_lista_interna
+    call verifica_lista_interna # verifica lista interna no andar atual, imprime e remove
+
+    pushl qtd_pessoas # insere quantidade de pessoas na pilha
+    pushl $pessoas_no_elevador # insere string para exibir qtd de pessoas na pilha
+    call printf # chamada externa ao printf
+
+    addl $8, %esp
+   
     # INFOS SOBRE O ESTADO DO ELEVADOR DEVEM SER COLOCADAS AQUI
 
     pushl $divide_tela # insere string divide_tela na pilha
