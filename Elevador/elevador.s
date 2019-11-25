@@ -10,7 +10,8 @@ pessoas_saindo:         .asciz "\n%d pessoa(s) saindo do elevador"
 pessoas_entrando:       .asciz "\n%d pessoa(s) entrando no elevador"
 pessoas_no_elevador:    .asciz "\n%d pessoa(s) dentro do elevador"
 formato_int:            .asciz "%d"
-chamadas_internas:      .asciz "\nChamada interna %d ida ao andar: %d"
+chamada_interna:        .asciz "\nChamada interna %d ida ao andar: %d"
+string_lista_interna:   .asciz "\n Lista interna posicao: %d - %d pessoas"
 string_teste:           .asciz "\nTeste leitura valores: %d e %d\n"
 qtd_andares:            .int 0
 qtd_pessoas_elevador:   .int 0
@@ -29,6 +30,35 @@ string_debug_2:         .asciz "\n Teste: %X"
 .lcomm lista_interna, 120
 
 .section .text
+
+imprime_lista_interna:
+  movl $lista_interna, %edi
+  movl qtd_andares, %ecx
+  movl $0, contador
+loop_impressao_lista_interna:
+  incl contador
+  pushl %ecx
+  pushl %edi
+
+  pushl (%edi)
+  pushl contador
+  pushl $string_lista_interna
+  call printf
+
+  addl $12, %esp
+  popl %edi
+  addl $4, %edi
+  popl %ecx
+  loop loop_impressao_lista_interna
+  ret
+
+incrementa_lista_interna:
+  movl $0x4, %eax
+  mull %edx
+  movl $lista_interna, %edi
+  addl %eax, %edi
+  incl (%edi)
+  ret
 
 verifica_lista_externa:
   movl $0x4, %eax # move 4 para eax
@@ -53,8 +83,22 @@ verifica_lista_externa:
   call srand
   addl $8, %esp
   movl qtd_pessoas_entrando, %ecx
+  movl $0, contador
 loop_insere_lista_interna:
-
+  pushl %ecx # coloca o contador do loop na pilha
+  incl contador # contador iniciado em 0 para fins de exibição
+  call rand # chamada externa ao rand
+  divl qtd_andares # sorteia um dos andares como chamada interna, o andar esta no %edx
+  pushl %edx
+  
+  call incrementa_lista_interna
+  popl %edx
+  pushl %edx
+  pushl contador
+  pushl $chamada_interna
+  call printf
+  addl $12, %esp
+  popl %ecx # recupera o contado do loop
   loop loop_insere_lista_interna
   ret # retorna
 
@@ -80,12 +124,12 @@ retorno: # metodo dummy para retornar
 
 .globl main
 main:
-  #movl $lista_interna, %edi
-  #movl $2, (%edi)
-  #movl $1, 4(%edi)
+  movl $lista_interna, %edi
+  movl $2, (%edi)
+  movl $1, 4(%edi)
 
   movl $lista_externa, %edi
-  movl $3, (%edi)
+  movl $2, (%edi)
   movl $2, 4(%edi)
 
   pushl $divide_tela # insere string divide_tela na pilha
@@ -123,8 +167,10 @@ main:
     addl $4, %esp # limpa pilha
 
     pushl %ecx
+    call imprime_lista_interna
     call verifica_lista_interna # verifica lista interna no andar atual, imprime e remove
     call verifica_lista_externa # verifica lista externa no andar atual, imprime e adiciona
+    call imprime_lista_interna
     popl %ecx
 
     pushl qtd_pessoas_elevador # insere quantidade de pessoas na pilha
