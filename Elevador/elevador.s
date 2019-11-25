@@ -11,7 +11,7 @@ pessoas_entrando:       .asciz "\n%d pessoa(s) entrando no elevador"
 pessoas_no_elevador:    .asciz "\n%d pessoa(s) dentro do elevador"
 formato_int:            .asciz "%d"
 chamada_interna:        .asciz "\nChamada interna %d ida ao andar: %d"
-string_lista_interna:   .asciz "\n Lista interna posicao: %d - %d pessoas"
+string_impressao_lista: .asciz "\n Lista posicao: %d - %d pessoas"
 string_teste:           .asciz "\nTeste leitura valores: %d e %d\n"
 qtd_andares:            .int 0
 qtd_pessoas_elevador:   .int 0
@@ -31,37 +31,38 @@ string_debug_2:         .asciz "\n Teste: %X"
 
 .section .text
 
-imprime_lista_interna:
-  movl $lista_interna, %edi
-  movl qtd_andares, %ecx
-  movl $0, contador
-loop_impressao_lista_interna:
-  incl contador
-  pushl %ecx
-  pushl %edi
+imprime_lista: # imprime uma lista (interna ou externa)
+  popl %edi # recebe o endereço da lista que deve estar no topo da pilha
+  movl qtd_andares, %ecx # seta o tamanho do loop
+  movl $0, contador # zera o contador de impressão
+loop_impressao_lista:
+  pushl %ecx # salva na pilha para evitar problemas
+  pushl %edi # salva na pilha para evitar problemas
 
-  pushl (%edi)
-  pushl contador
-  pushl $string_lista_interna
-  call printf
+  pushl (%edi) # empilha o valor de edi
+  pushl contador # empilha o contador
+  pushl $string_impressao_lista # empilha string
+  call printf # chamada ao printf
 
-  addl $12, %esp
-  popl %edi
-  addl $4, %edi
-  popl %ecx
-  loop loop_impressao_lista_interna
+  addl $12, %esp # limpa pilha
+  popl %edi # recupera edi
+  addl $4, %edi # avança na lista
+  popl %ecx # recupera ecx
+  incl contador # incrementa o contador
+  loop loop_impressao_lista_interna # realiza o loop
+  ret # retorna
+
+incrementa_andar_na_lista: # recebe da pilha qual a lista e qual andar. nessa ordem
+  popl %edx # andar a ser incrementado
+  popl %edi # lista a ser incrementada
+  movl $4, %eax # coloca 4 em %eax (tamanho de cada pos na lista)
+  mull %edx # calcula o offset a ser deslocado e poem em eax
+  addl %eax, %edi # desloca na lista
+  incl (%edi) # incrementa a qtd de pessoas naquele andar em 1
   ret
 
-incrementa_lista_interna:
-  movl $0x4, %eax
-  mull %edx
-  movl $lista_interna, %edi
-  addl %eax, %edi
-  incl (%edi)
-  ret
-
-verifica_lista_externa:
-  movl $0x4, %eax # move 4 para eax
+verifica_lista_externa: # verifica se alguem vai entrar e faz chamadas internas
+  movl $4, %eax # move 4 para eax
   movl andar_atual, %ebx # colocar o valor da qtd de andares em ebx
   mull %ebx # eax = eax * ebx || isso eh pra calcular o offset em bytes a ser andado na lista
   movl $lista_externa, %edi # move o inicio da lista para edi
@@ -74,38 +75,38 @@ verifica_lista_externa:
   addl qtd_pessoas_entrando, %ebx # qtd_pessoas_elevador = qtd_pessoas_elevador + qtd_pessoas_entrando
   movl %ebx, qtd_pessoas_elevador # atualiza qtd_pessoas_elevador
   pushl qtd_pessoas_entrando # poem qtd_pessoa_entrando na pilha
-  pushl $pessoas_entrando # poem string para exibir qtd pessoas saindo na pilha
+  pushl $pessoas_entrando # poem string para exibir qtd pessoas entrnado na pilha
   call printf # chamada externa printf
   addl $8, %esp # limpa pilha
   pushl $tempo
   call time
+  addl $4, %esp
   pushl tempo
   call srand
-  addl $8, %esp
   movl qtd_pessoas_entrando, %ecx
   movl $0, contador
 loop_insere_lista_interna:
-  pushl %ecx # coloca o contador do loop na pilha
+  #pushl %ecx # coloca o contador do loop na pilha
   incl contador # contador iniciado em 0 para fins de exibição
   call rand # chamada externa ao rand
   divl qtd_andares # sorteia um dos andares como chamada interna, o andar esta no %edx
+
+  pushl $lista_interna
   pushl %edx
-  
-  call incrementa_lista_interna
-  popl %edx
-  pushl %edx
-  pushl contador
-  pushl $chamada_interna
-  call printf
-  addl $12, %esp
-  popl %ecx # recupera o contado do loop
+  call incrementa_andar_na_lista
+
+  #pushl contador
+  #pushl $chamada_interna
+  #call printf
+  #addl $12, %esp
+  #popl %ecx # recupera o contado do loop
   loop loop_insere_lista_interna
   ret # retorna
 
-verifica_lista_interna:
-  movl $0x4, %eax # move 4 para eax
+verifica_lista_interna: # verifica se alguem precisa sair no andar atual
+  movl $4, %eax # move 4 para eax
   movl andar_atual, %ebx # colocar o valor da qtd de andares em ebx
-  mull %ebx # eax = eax * ebx || isso eh pra calcular o offset em bytes a ser andado na lista
+  mull %ebx #  calcula o offset em bytes a ser andado na lista
   movl $lista_interna, %edi # move o inicio da lista para edi
   addl %eax, %edi # caminha na lista interna para o andar atual
   cmpl $0, (%edi) # verifica se existe alguem que deseja sair naquele andar
@@ -167,10 +168,12 @@ main:
     addl $4, %esp # limpa pilha
 
     pushl %ecx
-    call imprime_lista_interna
+    pushl $lista_interna
+    call imprime_lista
     call verifica_lista_interna # verifica lista interna no andar atual, imprime e remove
     call verifica_lista_externa # verifica lista externa no andar atual, imprime e adiciona
-    call imprime_lista_interna
+    pushl $lista_interna
+    call imprime_lista
     popl %ecx
 
     pushl qtd_pessoas_elevador # insere quantidade de pessoas na pilha
