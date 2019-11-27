@@ -32,7 +32,13 @@ string_debug_2:         .asciz "\n Teste: %X"
 .section .text
 
 imprime_lista: # imprime uma lista (interna ou externa)
-  popl %edi # recebe o endereço da lista que deve estar no topo da pilha
+  pushl %ebp
+  mov %esp, %ebp
+  mov 8(%ebp), %edi # recebe o endereço da lista que deve estar no topo da pilha
+  pushl %edi
+  pushl $string_debug_2
+  call printf
+  addl $8, %esp
   movl qtd_andares, %ecx # seta o tamanho do loop
   movl $0, contador # zera o contador de impressão
 loop_impressao_lista:
@@ -49,7 +55,7 @@ loop_impressao_lista:
   addl $4, %edi # avança na lista
   popl %ecx # recupera ecx
   incl contador # incrementa o contador
-  loop loop_impressao_lista_interna # realiza o loop
+  loop loop_impressao_lista # realiza o loop
   ret # retorna
 
 incrementa_andar_na_lista: # recebe da pilha qual a lista e qual andar. nessa ordem
@@ -169,6 +175,9 @@ main:
 
     pushl %ecx
     pushl $lista_interna
+    pushl $string_debug_2
+    call printf
+    addl $4, %esp
     call imprime_lista
     call verifica_lista_interna # verifica lista interna no andar atual, imprime e remove
     call verifica_lista_externa # verifica lista externa no andar atual, imprime e adiciona
