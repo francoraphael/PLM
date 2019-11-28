@@ -66,50 +66,18 @@ incrementa_andar_na_lista: # recebe da pilha qual a lista e qual andar. nessa or
   ret
 
 verifica_lista_externa: # verifica se alguem vai entrar e faz chamadas internas
-  movl $4, %eax # move 4 para eax
-  movl andar_atual, %ebx # colocar o valor da qtd de andares em ebx
-  mull %ebx # eax = eax * ebx || isso eh pra calcular o offset em bytes a ser andado na lista
-  movl $lista_externa, %edi # move o inicio da lista para edi
-  addl %eax, %edi # caminha na lista externa para o andar atual
-  pushl (%edi)
-  popl qtd_pessoas_entrando
-  cmpl $0, qtd_pessoas_entrando
-  jle retorno # caso nao exista, sai da funcao
-  movl qtd_pessoas_elevador, %ebx # move qtd_pessoas_elevador para ebx
-  addl qtd_pessoas_entrando, %ebx # qtd_pessoas_elevador = qtd_pessoas_elevador + qtd_pessoas_entrando
-  movl %ebx, qtd_pessoas_elevador # atualiza qtd_pessoas_elevador
-debug:
-  #pushl $qtd_pessoas_entrando # poem qtd_pessoa_entrando na pilha
-  #pushl $pessoas_entrando # poem string para exibir qtd pessoas entrnado na pilha
-  #call printf # chamada externa printf
-  #addl $8, %esp # limpa pilha
+  movl $4, %eax
+  movl $qtd_pessoas_elevador, %edx
+  mull (%edx)
+  movl $lista_externa, %edi
+  addl %eax, %edi
+  movl (%edi), $qtd_pessoas_entrando
+  pushl $qtd_pessoas_entrando
   pushl $string_debug_3
   call printf
-  addl $4, %esp
-  pushl $tempo
-  call time
-  addl $4, %esp
-  pushl tempo
-  call srand
-  movl qtd_pessoas_entrando, %ecx
-  movl $0, contador
-loop_insere_lista_interna:
-  #pushl %ecx # coloca o contador do loop na pilha
-  incl contador # contador iniciado em 0 para fins de exibição
-  call rand # chamada externa ao rand
-  divl qtd_andares # sorteia um dos andares como chamada interna, o andar esta no %edx
-
-  pushl $lista_interna
-  pushl %edx
-  call incrementa_andar_na_lista
-
-  #pushl contador
-  #pushl $chamada_interna
-  #call printf
-  #addl $12, %esp
-  #popl %ecx # recupera o contado do loop
-  loop loop_insere_lista_interna
-  ret # retorna
+  addl $8, %esp
+  ret
+  
 
 verifica_lista_interna: # verifica se alguem precisa sair no andar atual
   movl $4, %eax # move 4 para eax
