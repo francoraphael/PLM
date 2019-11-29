@@ -22,8 +22,8 @@ qtd_pessoas_entrando:   .int 0
 contador:               .int 0
 tempo:                  .int 0
 faixa:                  .int 0
-string_debug:           .asciz "\n Teste: %d"
-string_debug_2:         .asciz "\n Teste: %X"
+string_debug:           .asciz "Teste: %d\n"
+string_debug_2:         .asciz "Teste: %X\n"
 
 .section .bss
 
@@ -56,7 +56,11 @@ loop_impressao_lista:
   addl $4, %edi # avança na lista
   popl %ecx # recupera ecx
   incl contador # incrementa o contador
-  loop loop_impressao_lista # realiza o loop
+  
+  decl %ecx
+  cmpl $0, %ecx
+  jg loop_impressao_lista
+
   popl %ebp
   ret # retorna
 
@@ -108,7 +112,11 @@ loop_insere_lista_interna:
   #call printf
   #addl $12, %esp
   #popl %ecx # recupera o contado do loop
-  loop loop_insere_lista_interna
+
+  decl %ecx
+  cmpl $0, %ecx
+  jg loop_insere_lista_interna
+
   ret # retorna
 
 verifica_lista_interna: # verifica se alguem precisa sair no andar atual
@@ -153,6 +161,14 @@ gera_random: # gera random com base em uma faixa passada por parametro e retorno
 
   ret
 
+sorteia_pessoas: # sorteia n de pessoas de 1 a 3 e devolve em eax
+    movl $3, faixa # faixa = 3
+    pushl faixa # faixa na pilha
+    call gera_random # gera um random de 0 a 3 -1
+    addl $4, %esp # limpa pilha
+    incl %eax # para rand nao ser 0
+    ret
+
 calcula_probabilidade:
   movl $100, faixa
   pushl faixa
@@ -160,7 +176,7 @@ calcula_probabilidade:
   incl %eax
   addl $4, %esp # limpa pilha
 
-  cmpl %eax, probabilidade_evento
+  cmpl probabilidade_evento, %eax
   jg falso
 
   movl $1, %eax
@@ -168,8 +184,7 @@ calcula_probabilidade:
 
   falso:
     movl $0, %eax
-  
-  ret
+    ret
 
 sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
   movl $2, faixa # faixa = 2
@@ -178,36 +193,68 @@ sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
   addl $4, %esp # limpa pilha
   incl %eax # para rand nao ser 0
 
+  pushl %eax
+  pushl $string_debug
+  call printf
+  addl $4, %esp
+  popl %eax
+
   movl %eax, %ecx
   verifica_andares:
+    pushl %ecx
+
+    pushl $2424
+    pushl $string_debug
+    call printf
+    addl $8, %esp
+
     call calcula_probabilidade
-    cmpl %eax, $0
-    jg calcula
-    ret
+
+    cmpl $0, %eax
+    jz nao_calcula
 
     calcula:
-      movl qtd_andares, faixa # faixa = qtd_andares
+      movl qtd_andares, %ebx # faixa = qtd_andares
+      movl %ebx, faixa # faixa = qtd_andares
       pushl faixa # faixa na pilha
       call gera_random # gera um random de 0 a qtd_andares - 1
       addl $4, %esp # limpa pilha
       incl %eax # para rand nao ser 0
+      
+      movl %eax, %ebx # %ebx = andar do sorteio
+
+      call sorteia_pessoas
+
+      pushl %eax
+      pushl $string_debug
+      call printf
+      addl $4, %esp
+      popl %eax
+
+      movl %eax, %ecx
+      loop_pessoas:
+        pushl %ecx
+
+        pushl $2525
+        pushl $string_debug
+        call printf
+        addl $8, %esp
+
+        popl %ecx
+        decl %ecx
+        cmpl $0, %ecx
+        jg loop_pessoas
 
       # CONTINUAR AQUI *** CALCULAR N DE PESSOAS E INCREMENTAR NA POSICAO DO VETOR LISTA EXTERNA A QTD DE PESSOAS CALCULADA
+      
+    nao_calcula:
+      popl %ecx
+      debug1:
+      decl %ecx
+      cmpl $0, %ecx
+      jg verifica_andares
 
-
-
-    loop verifica_andares
-
-  
   ret
-
-sorteia_pessoas: # sorteia n de pessoas de 1 a 3 e devolve em eax
-    movl $3, faixa # faixa = 3
-    pushl faixa # faixa na pilha
-    call gera_random # gera um random de 0 a 3 -1
-    addl $4, %esp # limpa pilha
-    incl %eax # para rand nao ser 0
-    ret
 
 .globl main
 main:
@@ -254,11 +301,11 @@ main:
     call  printf # chamada externa ao printf
     addl $4, %esp # limpa pilha
 
-    call sorteia_pessoas
+    call sorteia_andares
 
-    pushl %eax
-    pushl $string_debug
-    call printf
+    pushl $divide_tela # insere string divide_tela na pilha
+    call  printf # chamada externa ao printf
+    addl $4, %esp
 
     pushl $lista_interna
     pushl $string_debug_2
@@ -285,7 +332,10 @@ main:
     jmp fim
 
     popl %ecx
-    loop loop_infinito # verifica se %ecx e maior que 0, se for, vai para loop_infinito
+
+    decl %ecx
+    cmpl $0, %ecx
+    jg loop_infinito
 
   fim:
     pushl $0
