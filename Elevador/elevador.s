@@ -273,9 +273,7 @@ main:
 
     call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
 
-    pushl $lista_externa
-    call imprime_lista
-    addl $4, %esp
+    # FAZER O RESTO DO TRAB A PARTIR DAQUI
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
