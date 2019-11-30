@@ -22,6 +22,8 @@ qtd_pessoas_entrando:   .int 0
 contador:               .int 0
 tempo:                  .int 0
 faixa:                  .int 0
+andar_sorteado:         .int 0
+limpabuf:               .string "%*c"
 string_debug:           .asciz "Teste: %d\n"
 string_debug_2:         .asciz "Teste: %X\n"
 
@@ -65,12 +67,17 @@ loop_impressao_lista:
   ret # retorna
 
 incrementa_andar_na_lista: # recebe da pilha qual a lista e qual andar. nessa ordem
-  popl %edx # andar a ser incrementado
-  popl %edi # lista a ser incrementada
+  pushl %ebp
+  movl %esp, %ebp
+
+  movl 8(%ebp), %edx
+  movl 12(%ebp), %edi
   movl $4, %eax # coloca 4 em %eax (tamanho de cada pos na lista)
   mull %edx # calcula o offset a ser deslocado e poem em eax
   addl %eax, %edi # desloca na lista
   incl (%edi) # incrementa a qtd de pessoas naquele andar em 1
+
+  popl %ebp
   ret
 
 verifica_lista_externa: # verifica se alguem vai entrar e faz chamadas internas
@@ -106,6 +113,7 @@ loop_insere_lista_interna:
   pushl $lista_interna
   pushl %edx
   call incrementa_andar_na_lista
+  addl $8, %esp
 
   #pushl contador
   #pushl $chamada_interna
@@ -193,20 +201,9 @@ sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
   addl $4, %esp # limpa pilha
   incl %eax # para rand nao ser 0
 
-  pushl %eax
-  pushl $string_debug
-  call printf
-  addl $4, %esp
-  popl %eax
-
   movl %eax, %ecx
   verifica_andares:
     pushl %ecx
-
-    pushl $2424
-    pushl $string_debug
-    call printf
-    addl $8, %esp
 
     call calcula_probabilidade
 
@@ -221,38 +218,29 @@ sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
       addl $4, %esp # limpa pilha
       incl %eax # para rand nao ser 0
       
-      movl %eax, %ebx # %ebx = andar do sorteio
+      movl %eax, andar_sorteado # andar_sorteado = andar do sorteio
 
-      call sorteia_pessoas
-
-      pushl %eax
-      pushl $string_debug
-      call printf
-      addl $4, %esp
-      popl %eax
+      call sorteia_pessoas # sorteia n de pessoas que fizeram a chamada externa (vao entrar no elevador)
 
       movl %eax, %ecx
       loop_pessoas:
         pushl %ecx
 
-        pushl $2525
-        pushl $string_debug
-        call printf
-        addl $8, %esp
+        pushl $lista_externa
+        pushl andar_sorteado
+        call incrementa_andar_na_lista
+        addl $8, %esp # limpa pilha
 
-        popl %ecx
-        decl %ecx
-        cmpl $0, %ecx
-        jg loop_pessoas
+        popl %ecx # loop
+        decl %ecx # loop
+        cmpl $0, %ecx # loop
+        jg loop_pessoas # loop
 
-      # CONTINUAR AQUI *** CALCULAR N DE PESSOAS E INCREMENTAR NA POSICAO DO VETOR LISTA EXTERNA A QTD DE PESSOAS CALCULADA
-      
     nao_calcula:
-      popl %ecx
-      debug1:
-      decl %ecx
-      cmpl $0, %ecx
-      jg verifica_andares
+      popl %ecx # loop
+      decl %ecx # loop
+      cmpl $0, %ecx # loop
+      jg verifica_andares # loop
 
   ret
 
@@ -291,7 +279,11 @@ main:
 
   addl $28, %esp # limpa a pilha
 
-  movl $0, %ecx # seta %ecx para rodar loop infinito
+  pushl $limpabuf # limpa o buffer do teclado
+  call scanf # limpa o buffer do teclado
+  addl $4, %esp # limpa o buffer do teclado
+
+  movl $1, %ecx # seta %ecx para rodar loop infinito
 
   loop_infinito: # rotulo para loop infinito do elevador
     incl %ecx # incrementa %ecx em 1
@@ -300,12 +292,6 @@ main:
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
     addl $4, %esp # limpa pilha
-
-    call sorteia_andares
-
-    pushl $divide_tela # insere string divide_tela na pilha
-    call  printf # chamada externa ao printf
-    addl $4, %esp
 
     pushl $lista_interna
     pushl $string_debug_2
@@ -320,22 +306,20 @@ main:
     pushl qtd_pessoas_elevador # insere quantidade de pessoas na pilha
     pushl $pessoas_no_elevador # insere string para exibir qtd de pessoas na pilha
     call printf # chamada externa ao printf
+    addl $8, %esp # limpa pilha
 
-    addl $8, %esp #limpa pilha
-   
-    # INFOS SOBRE O ESTADO DO ELEVADOR DEVEM SER COLOCADAS AQUI
+    call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
     addl $4, %esp
-    
-    jmp fim
 
-    popl %ecx
+    call getchar # para ler o resultado antes o elevador continuar. apertar apenas ENTER
 
-    decl %ecx
-    cmpl $0, %ecx
-    jg loop_infinito
+    popl %ecx # loop
+    decl %ecx # loop
+    cmpl $0, %ecx # loop
+    jg loop_infinito # loop
 
   fim:
     pushl $0
