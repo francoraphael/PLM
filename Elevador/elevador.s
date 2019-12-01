@@ -1,32 +1,31 @@
 .section .data
 
-divide_tela:            .asciz "===================================================\n"
-titulo:                 .asciz "Simulador de elevador\n"
-subindo:                .asciz "Subindo...\n"
-descendo:               .asciz "Descendo...\n"
-insira_andares:         .asciz "Insira a quantidade de andares: "
-insira_probabilidade:   .asciz "Insira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
-pessoas_saindo:         .asciz "%d pessoa(s) saindo do elevador\n"
-pessoas_entrando:       .asciz "%d pessoa(s) entrando no elevador\n"
-pessoas_no_elevador:    .asciz "%d pessoa(s) dentro do elevador\n"
-formato_int:            .asciz "%d"
-chamada_interna:        .asciz "Chamada interna %d ida ao andar: %d\n"
-string_impressao_lista: .asciz "Lista posicao: %d - %d pessoas\n"
-string_teste:           .asciz "\nTeste leitura valores: %d e %d\n"
-qtd_andares:            .int 0
-qtd_pessoas_elevador:   .int 0
-probabilidade_evento:   .int 0
-direcao:                .int 0 # SUBINDO (0) ou DESCENDO (1)
-andar_atual:            .int 0
-qtd_pessoas_entrando:   .int 0
-contador:               .int 0
-tempo:                  .int 0
-faixa:                  .int 0
-andar_sorteado:         .int 0
-limpabuf:               .string "%*c"
-string_debug:           .asciz "Teste: %d\n"
-string_debug_2:         .asciz "Teste: %X\n"
-string_debug_3:		      .asciz "\nTeste"
+divide_tela:              .asciz "===================================================\n"
+titulo:                   .asciz "Simulador de elevador\n"
+subindo:                  .asciz "Subindo...\n"
+descendo:                 .asciz "Descendo...\n"
+insira_andares:           .asciz "Insira a quantidade de andares: "
+insira_probabilidade:     .asciz "Insira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
+pessoas_saindo:           .asciz "%d pessoa(s) saindo do elevador\n"
+string_pessoas_entrando:  .asciz "%d pessoa(s) entrando no elevador\n"
+pessoas_no_elevador:      .asciz "%d pessoa(s) dentro do elevador\n"
+formato_int:              .asciz "%d"
+string_chamada_interna:   .asciz "Chamada interna ida ao andar: %d\n"
+string_impressao_lista:   .asciz "Lista posicao: %d - %d pessoas\n"
+qtd_andares:              .int 0
+qtd_pessoas_elevador:     .int 0
+probabilidade_evento:     .int 0
+direcao:                  .int 0 # SUBINDO (0) ou DESCENDO (1)
+andar_atual:              .int 0
+qtd_pessoas_entrando:     .int 0
+contador:                 .int 0
+tempo:                    .int 0
+faixa:                    .int 0
+andar_sorteado:           .int 0
+limpabuf:                 .string "%*c"
+string_debug:             .asciz "Valor ecx: %d\n"
+string_debug_2:           .asciz "Teste: %X\n"
+string_debug_3:		        .asciz "\nTeste"
 
 .section .bss
 
@@ -36,8 +35,8 @@ string_debug_3:		      .asciz "\nTeste"
 .section .text
 
 imprime_lista: # imprime uma lista (interna ou externa)
-  pushl %ebp
-  movl %esp, %ebp
+  pushl %ebp # boilerplate padrão
+  movl %esp, %ebp # boilerplate padrão
   movl 8(%ebp), %edi # recebe o endereço da lista que deve estar no topo da pilha
   movl qtd_andares, %ecx # seta o tamanho do loop
   movl $0, contador # zera o contador de impressão
@@ -55,17 +54,17 @@ loop_impressao_lista:
   addl $4, %edi # avança na lista
   popl %ecx # recupera ecx
   incl contador # incrementa o contador
-  
-  decl %ecx
-  cmpl $0, %ecx
-  jg loop_impressao_lista
+
+  loop loop_impressao_lista # loop
 
   popl %ebp
   ret # retorna
 
-incrementa_andar_na_lista: # recebe da pilha qual a lista e qual andar. nessa ordem
-  pushl %ebp
-  movl %esp, %ebp
+# params
+# andar, lista
+incrementa_andar_na_lista: # na lista recebida incrementa o número de pessoas naquele andar em uma unidade
+  pushl %ebp # boilerplate padrão
+  movl %esp, %ebp # boilerplate padrão
 
   movl 8(%ebp), %edx # andar a ser incrementado
   movl 12(%ebp), %edi # lista a ser incrementada
@@ -77,17 +76,79 @@ incrementa_andar_na_lista: # recebe da pilha qual a lista e qual andar. nessa or
   popl %ebp
   ret
 
-verifica_lista_externa: # verifica se alguem vai entrar e faz chamadas internas
-  movl $4, %eax
-  movl $qtd_pessoas_elevador, %edx
-  mull (%edx)
-  movl $lista_externa, %edi
-  addl %eax, %edi
-  movl (%edi), $qtd_pessoas_entrando
-  pushl $qtd_pessoas_entrando
-  pushl $string_debug_3
-  call printf
-  addl $8, %esp
+chamada_lista_interna: # realiza uma chamada aleatória na lista interna
+  movl qtd_andares, %edi # move a quantidade de andares para edi
+  incl %edi # incrementa o edi em uma unidade para corrigir a faixa de randoms
+  pushl %edi # coloca o argumento (faixa) na pilha
+  call gera_random # gera um random em eax
+  addl $4, %esp # limpa a pilha
+
+  pushl %eax # adiciona andar sorteado na pilha
+  pushl $string_chamada_interna # colocar string a ser printada na pilha
+  call printf # chamada externa ao printf
+  addl $4, %esp # limpa a pilha
+  popl %eax # recupera eax
+
+  pushl $lista_interna # adiciona argumento na pilha
+  pushl %eax # adiciona argumento na pilha
+  call incrementa_andar_na_lista # altera a lista interna no andar sorteado
+  addl $8, %esp # limpa a pilha
+  ret
+
+# params
+# andar, lista
+quantidade_pessoas_andar: # devolve a quantidade de pessoas na lista e andar recebidos
+  pushl %ebp # boilerplate padrão
+  movl %esp, %ebp # boilerplate padrão
+  movl 8(%ebp), %edi # recupera andar
+  movl 12(%ebp), %esi # recupera lista
+  movl $4, %eax # move o offset a ser multiplicado
+  mull %edi # eax = andar * offset em bytes
+  addl %eax, %esi # desloca para o andar na lista
+  movl (%esi), %eax # move a qtd de pessoas naquele andar da lista pra eax
+  popl %ebp
+  ret
+
+# params
+# andar, lista
+zera_pessoas_andar: # zera a quantidade de pessoas em um andar de uma lista
+  pushl %ebp # boilerplate padrão
+  movl %esp, %ebp # boilerplate padrão
+  movl 8(%ebp), %edi # recupera andar
+  movl 12(%ebp), %esi # recupera lista
+  movl $4, %eax # move o offset a ser multiplicado
+  mull %edi # eax = andar * offset em bytes
+  addl %eax, %esi # desloca para o andar na lista
+  movl $0, (%esi) # zera a qtd de pessoas naquele andar da lista
+  popl %ebp
+  ret
+
+verifica_lista_externa: # verifica se alguem da lista externa vai entrar e faz chamadas internas
+  pushl $lista_externa # coloca argumento na pilha
+  pushl andar_atual # coloca argumento na pilha
+  call quantidade_pessoas_andar # retorna em eax quantas pessoas tem no andar atual
+  addl $8, %esp # limpa pilha
+  pushl %eax # backup eax
+  pushl $lista_externa # coloca argumento na pilha
+  pushl andar_atual # coloca argumento na pilha
+  call zera_pessoas_andar # remove da lista externa todas as pessoas que estão no andar atual
+  addl $8, %esp # limpa pilha
+  popl %eax # recupera eax
+  movl qtd_pessoas_elevador, %edi # move qtd_pessoas_elevador para edi
+  addl %eax, %edi # soma a qtd de pessoas entrando a qtd de pessoas já no elevador
+  movl %edi, qtd_pessoas_elevador # atualiza variável
+  pushl %eax # coloca a qtd de pessoas entrando na pilha
+  pushl $string_pessoas_entrando # coloca string de exibição na pilha
+  call printf # chamada externa ao printf
+  addl $4, %esp # limpa pilha
+  popl %ecx # recupera eax em ecx
+  cmpl $0, %ecx # verifica se existem pessoas entrando
+  je retorno # do contrário sai da função
+  loop_insere_lista_interna:
+  pushl %ecx # backup ecx
+  call chamada_lista_interna # realiza um chamada aleatória na lista interna
+  popl %ecx # recupera ecx
+  loop loop_insere_lista_interna # loop
   ret
   
 verifica_lista_interna: # verifica se alguem precisa sair no andar atual
@@ -209,11 +270,8 @@ sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
 
 .globl main
 main:
- # movl $lista_interna, %edi
- # movl $2, (%edi)
- # movl $1, 4(%edi)
 
-  movl $lista_externa, %edi
+  movl $lista_externa, %edi # preenche lista externa com valores de teste
   movl $2, (%edi)
   movl $2, 4(%edi)
 
@@ -246,25 +304,14 @@ main:
   call scanf # limpa o buffer do teclado
   addl $4, %esp # limpa o buffer do teclado
 
-  movl $1, %ecx # seta %ecx para rodar loop infinito
-
   loop_infinito: # rotulo para loop infinito do elevador
-    incl %ecx # incrementa %ecx em 1
-    pushl %ecx # salva %ecx
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
     addl $4, %esp # limpa pilha
 
-    pushl $lista_interna
-    call imprime_lista
-    addl $4, %esp
     call verifica_lista_interna # verifica lista interna no andar atual, imprime e remove
     call verifica_lista_externa # verifica lista externa no andar atual, imprime e adiciona
-    pushl $lista_externa
-    call imprime_lista
-    addl $4, %esp
-    popl %ecx
 
     pushl qtd_pessoas_elevador # insere quantidade de pessoas na pilha
     pushl $pessoas_no_elevador # insere string para exibir qtd de pessoas na pilha
@@ -281,10 +328,7 @@ main:
 
     call getchar # para ler o resultado antes o elevador continuar. apertar apenas ENTER
 
-    popl %ecx # loop
-    decl %ecx # loop
-    cmpl $0, %ecx # loop
-    jg loop_infinito # loop
+    jmp loop_infinito # loop
 
   fim:
     pushl $0
