@@ -11,6 +11,7 @@ string_pessoas_entrando:    .asciz "%d pessoa(s) entrando no elevador\n"
 string_pessoas_no_elevador: .asciz "%d pessoa(s) dentro do elevador\n"
 string_chamada_interna:     .asciz "Chamada interna ida ao andar: %d\n"
 string_impressao_lista:     .asciz "Lista posicao: %d - %d pessoas\n"
+string_chamadas_externas:   .asciz "%d chamada(s) externa(s) foram feitas no andar %d\n"
 formato_int:                .asciz "%d"
 qtd_andares:                .int 0
 qtd_pessoas_elevador:       .int 0
@@ -21,6 +22,7 @@ contador:                   .int 0
 tempo:                      .int 0
 faixa:                      .int 0
 andar_sorteado:             .int 0
+pessoas_sorteadas:          .int 0
 limpabuf:                   .string "%*c"
 string_debug:               .asciz "Teste: %d\n"
 string_debug_2:             .asciz "Teste: %X\n"
@@ -244,8 +246,9 @@ sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
       movl %eax, andar_sorteado # andar_sorteado = andar do sorteio
 
       call sorteia_pessoas # sorteia n de pessoas que fizeram a chamada externa (vao entrar no elevador)
+      movl %eax, pessoas_sorteadas
 
-      movl %eax, %ecx
+      movl pessoas_sorteadas, %ecx
       loop_pessoas:
         pushl %ecx
 
@@ -258,6 +261,12 @@ sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
         decl %ecx # loop
         cmpl $0, %ecx # loop
         jg loop_pessoas # loop
+
+        pushl andar_sorteado # print n pessoas na chamada externa
+        pushl pessoas_sorteadas # print n pessoas na chamada externa
+        pushl $string_chamadas_externas # print n pessoas na chamada externa
+        call printf # print n pessoas na chamada externa
+        addl $12, %esp # print n pessoas na chamada externa
 
     nao_calcula:
       popl %ecx # loop
