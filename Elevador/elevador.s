@@ -1,31 +1,30 @@
 .section .data
 
-divide_tela:              .asciz "===================================================\n"
-titulo:                   .asciz "Simulador de elevador\n"
-subindo:                  .asciz "Subindo...\n"
-descendo:                 .asciz "Descendo...\n"
-insira_andares:           .asciz "Insira a quantidade de andares: "
-insira_probabilidade:     .asciz "Insira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
-pessoas_saindo:           .asciz "%d pessoa(s) saindo do elevador\n"
-string_pessoas_entrando:  .asciz "%d pessoa(s) entrando no elevador\n"
-pessoas_no_elevador:      .asciz "%d pessoa(s) dentro do elevador\n"
-formato_int:              .asciz "%d"
-string_chamada_interna:   .asciz "Chamada interna ida ao andar: %d\n"
-string_impressao_lista:   .asciz "Lista posicao: %d - %d pessoas\n"
-qtd_andares:              .int 0
-qtd_pessoas_elevador:     .int 0
-probabilidade_evento:     .int 0
-direcao:                  .int 0 # SUBINDO (0) ou DESCENDO (1)
-andar_atual:              .int 0
-qtd_pessoas_entrando:     .int 0
-contador:                 .int 0
-tempo:                    .int 0
-faixa:                    .int 0
-andar_sorteado:           .int 0
-limpabuf:                 .string "%*c"
-string_debug:             .asciz "Valor ecx: %d\n"
-string_debug_2:           .asciz "Teste: %X\n"
-string_debug_3:		        .asciz "\nTeste"
+divide_tela:                .asciz "===================================================\n"
+titulo:                     .asciz "Simulador de elevador\n"
+subindo:                    .asciz "Subindo...\n"
+descendo:                   .asciz "Descendo...\n"
+insira_andares:             .asciz "Insira a quantidade de andares: "
+insira_probabilidade:       .asciz "Insira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
+string_pessoas_saindo:      .asciz "%d pessoa(s) saindo do elevador\n"
+string_pessoas_entrando:    .asciz "%d pessoa(s) entrando no elevador\n"
+string_pessoas_no_elevador: .asciz "%d pessoa(s) dentro do elevador\n"
+string_chamada_interna:     .asciz "Chamada interna ida ao andar: %d\n"
+string_impressao_lista:     .asciz "Lista posicao: %d - %d pessoas\n"
+formato_int:                .asciz "%d"
+qtd_andares:                .int 0
+qtd_pessoas_elevador:       .int 0
+probabilidade_evento:       .int 0
+direcao:                    .int 0 # SUBINDO (0) ou DESCENDO (1)
+andar_atual:                .int 0
+contador:                   .int 0
+tempo:                      .int 0
+faixa:                      .int 0
+andar_sorteado:             .int 0
+limpabuf:                   .string "%*c"
+string_debug:               .asciz "Teste: %d\n"
+string_debug_2:             .asciz "Teste: %X\n"
+string_debug_3:		          .asciz "\nTeste"
 
 .section .bss
 
@@ -160,10 +159,10 @@ verifica_lista_interna: # verifica se alguem precisa sair no andar atual
   cmpl $0, (%edi) # verifica se existe alguem que deseja sair naquele andar
   jle retorno # caso nao exista, sai da funcao
   movl qtd_pessoas_elevador, %ebx # move qtd_pessoas_elevador para ebx
-  subl (%edi), %ebx # qtd_pessoas_elevador = qtd_pessoas_elevador - qtd_pessoas_saindo
+  subl (%edi), %ebx # qtd_pessoas_elevador = qtd_pessoas_elevador - qtd_string_pessoas_saindo
   movl %ebx, qtd_pessoas_elevador # atualiza qtd_pessoas_elevador
   pushl (%edi) # poem qtd_pessoa_saindo na pilha
-  pushl $pessoas_saindo # poem string para exibir qtd pessoas saindo na pilha
+  pushl $string_pessoas_saindo # poem string para exibir qtd pessoas saindo na pilha
   call printf # chamada externa printf
   addl $8, %esp # limpa pilha
   ret # retorna
@@ -314,7 +313,7 @@ main:
     call verifica_lista_externa # verifica lista externa no andar atual, imprime e adiciona
 
     pushl qtd_pessoas_elevador # insere quantidade de pessoas na pilha
-    pushl $pessoas_no_elevador # insere string para exibir qtd de pessoas na pilha
+    pushl $string_pessoas_no_elevador # insere string para exibir qtd de pessoas na pilha
     call printf # chamada externa ao printf
     addl $8, %esp # limpa pilha
 
