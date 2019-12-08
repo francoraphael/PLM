@@ -2,13 +2,14 @@
 
 divide_tela:                .asciz "===================================================\n"
 titulo:                     .asciz "Simulador de elevador\n"
-subindo:                    .asciz "Subindo...\n"
-descendo:                   .asciz "Descendo...\n"
+string_subindo:             .asciz "Subindo...\n"
+string_descendo:            .asciz "Descendo...\n"
 insira_andares:             .asciz "Insira a quantidade de andares: "
 insira_probabilidade:       .asciz "Insira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
 string_pessoas_saindo:      .asciz "%d pessoa(s) saindo do elevador\n"
 string_pessoas_entrando:    .asciz "%d pessoa(s) entrando no elevador\n"
 string_pessoas_no_elevador: .asciz "%d pessoa(s) dentro do elevador\n"
+string_andar_atual:         .asciz "Andar atual: %d\n"
 string_chamada_interna:     .asciz "Chamada interna ida ao andar: %d\n"
 string_impressao_lista:     .asciz "Lista posicao: %d - %d pessoas\n"
 string_chamadas_externas:   .asciz "%d chamada(s) externa(s) foram feitas no andar %d\n"
@@ -111,6 +112,103 @@ quantidade_pessoas_andar: # devolve a quantidade de pessoas na lista e andar rec
   ret
 
 # params
+# lista
+existem_chamadas_direcao: # dado uma lista, usa a direção atual e verifica se existem chamadas naquela direção
+  pushl %ebp # boilerplate padrão
+  movl %esp, %ebp # boilerplate padrão
+  movl 8(%ebp), %ebx # coloca a lista em ebx
+
+  cmpl $0, direcao # verifica se esta subindo
+  je subindo # caso verdade, pula para logica adequada
+  jmp descendo # do contrario, esta descendo
+
+  subindo:
+    movl andar_atual, %eax # move andar_atual para eax
+    movl qtd_andares, %ecx # move qtd_andares para ecx
+    subl %eax, %ecx # subtrai o andar_atual da qtd_andares
+    decl %ecx # desconta uma unidade do ecx
+
+    loop_subindo:
+      movl andar_atual, %eax # move andar_atual para eax
+      addl %ecx, %eax # coloca em eax andar_atual + offset que falta (ecx)
+      pushl %ecx  # salva o contador do loop
+      pushl %ebx # coloca a lista na pilha
+      pushl %eax # coloca o andar a ser verificado
+      call quantidade_pessoas_andar
+      addl $8, %esp # limpa pilha
+      popl %ecx # recupera contador do loop
+      cmpl $0, %eax # caso existe alguem no andar acima, prossegue subindo
+      jg fim_prossegue
+
+      loop loop_subindo
+      jmp fim_inverte # caso todos andares acima estejam vazios, inverte direção
+
+  descendo:
+
+  fim_inverte:
+    movl $0, %eax # coloca o 0 como retorno em eax, representando que vai inverter a direção
+    popl %ebp
+    ret
+
+  fim_prossegue: # coloca o 0 como retorno em eax, representando que vai prosseguir na direção
+    movl $1, %eax
+    popl %ebp
+    ret
+
+
+verifica_chamadas_relativas: # dado a direção do elevador, verifica se o ele prossegue na mesma direção
+
+  pushl $lista_externa
+  call existem_chamadas_direcao
+  addl $4, %esp
+  cmpl $1, %eax
+  je prossegue_retorna
+
+  pushl $lista_interna
+  call existem_chamadas_direcao
+  addl $4, %esp
+  cmpl $1, %eax
+  je prossegue_retorna
+
+  call inverte
+  ret
+
+  prossegue_retorna:
+    call prossegue
+    ret
+
+inverte:
+
+  ret
+
+prossegue:
+  movl direcao, %eax
+  cmpl $0, %eax
+  je prossegue_subindo
+  jmp prossegue_descendo
+
+  prossegue_subindo:
+    movl andar_atual, %eax
+    cmpl qtd_andares, %eax
+    je inverte_retorna
+    incl %eax
+    movl %eax, andar_atual
+    ret
+
+  prossegue_descendo:
+    movl andar_atual, %eax
+    cmpl $0, %eax
+    je inverte_retorna
+    decl %eax
+    movl %eax, andar_atual
+    ret
+
+  inverte_retorna:
+    call inverte
+    ret
+  
+
+# params
 # andar, lista
 zera_pessoas_andar: # zera a quantidade de pessoas em um andar de uma lista
   pushl %ebp # boilerplate padrão
@@ -146,10 +244,10 @@ verifica_lista_externa: # verifica se alguem da lista externa vai entrar e faz c
   cmpl $0, %ecx # verifica se existem pessoas entrando
   je retorno # do contrário sai da função
   loop_insere_lista_interna:
-  pushl %ecx # backup ecx
-  call chamada_lista_interna # realiza um chamada aleatória na lista interna
-  popl %ecx # recupera ecx
-  loop loop_insere_lista_interna # loop
+    pushl %ecx # backup ecx
+    call chamada_lista_interna # realiza um chamada aleatória na lista interna
+    popl %ecx # recupera ecx
+    loop loop_insere_lista_interna # loop
   ret
   
 verifica_lista_interna: # verifica se alguem precisa sair no andar atual
@@ -173,25 +271,17 @@ retorno: # metodo dummy para retornar
   ret # retorna
 
 gera_random: # gera random com base em uma faixa passada por parametro e retorno em %eax
-  pushl %ebp
-  movl %esp, %ebp
+  pushl %ebp #boilerplate padrão
+  movl %esp, %ebp # boilerplate padrão
   
-  pushl $tempo
-  call time
-  addl $4, %esp
-  
-  pushl tempo
-  call srand # modifica semente de rand com base na data atual
   call rand # gera rand em %eax
-  addl $4, %esp
 
-  movl 8(%ebp), %edi
+  movl 8(%ebp), %edi # recupera faixa
   movl $0, %edx
   divl %edi # resto da divisao pela faixa é o rand de 0 até faixa - 1
   movl %edx, %eax # variavel de retorno #eax
 
   popl %ebp # devolve %esp original
-
   ret
 
 sorteia_pessoas: # sorteia n de pessoas de 1 a 3 e devolve em eax
@@ -279,9 +369,13 @@ sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
 .globl main
 main:
 
-  movl $lista_externa, %edi # preenche lista externa com valores de teste
-  movl $2, (%edi)
-  movl $2, 4(%edi)
+  pushl $tempo # variavel que vai receber a chamada do time
+  call time # chamada externa ao time
+  addl $4, %esp # limpa pilha
+
+  pushl tempo # coloca o tempo gerado na pilha
+  call srand # chamada externa ao srand para modifica seed
+  addl $4, %esp # limpa pilha
 
   pushl $divide_tela # insere string divide_tela na pilha
   call  printf # chamada externa ao printf
@@ -308,6 +402,10 @@ main:
 
   addl $28, %esp # limpa a pilha
 
+  movl qtd_andares, %eax
+  incl %eax
+  movl %eax, qtd_andares
+
   pushl $limpabuf # limpa o buffer do teclado
   call scanf # limpa o buffer do teclado
   addl $4, %esp # limpa o buffer do teclado
@@ -317,6 +415,11 @@ main:
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
     addl $4, %esp # limpa pilha
+
+    pushl andar_atual # insere quantidade de pessoas na pilha
+    pushl $string_andar_atual # insere string para exibir qtd de pessoas na pilha
+    call printf # chamada externa ao printf
+    addl $8, %esp # limpa pilha
 
     call verifica_lista_interna # verifica lista interna no andar atual, imprime e remove
     call verifica_lista_externa # verifica lista externa no andar atual, imprime e adiciona
@@ -328,11 +431,11 @@ main:
 
     call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
 
-    # FAZER O RESTO DO TRAB A PARTIR DAQUI
+    call verifica_chamadas_relativas # movimenta elevador
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
-    addl $4, %esp
+    addl $4, %esp # limpa pilha
 
     call getchar # para ler o resultado antes o elevador continuar. apertar apenas ENTER
 
