@@ -36,32 +36,6 @@ limpabuf:                     .string "%*c"
 
 .section .text
 
-imprime_lista: # imprime uma lista (interna ou externa)
-  pushl %ebp # boilerplate padrão
-  movl %esp, %ebp # boilerplate padrão
-  movl 8(%ebp), %edi # recebe o endereço da lista que deve estar no topo da pilha
-  movl qtd_andares, %ecx # seta o tamanho do loop
-  movl $0, contador # zera o contador de impressão
-loop_impressao_lista:
-  pushl %ecx # salva na pilha para evitar problemas
-  pushl %edi # salva na pilha para evitar problemas
-
-  pushl (%edi) # empilha o valor de edi
-  pushl contador # empilha o contador
-  pushl $string_impressao_lista # empilha string
-  call printf # chamada ao printf
-
-  addl $12, %esp # limpa pilha
-  popl %edi # recupera edi
-  addl $4, %edi # avança na lista
-  popl %ecx # recupera ecx
-  incl contador # incrementa o contador
-
-  loop loop_impressao_lista # loop
-
-  popl %ebp
-  ret # retorna
-
 # params
 # andar, lista
 incrementa_andar_na_lista: # na lista recebida incrementa o número de pessoas naquele andar em uma unidade
