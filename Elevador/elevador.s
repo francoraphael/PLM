@@ -1,36 +1,38 @@
 .section .data
 
-divide_tela:                .asciz "===================================================\n"
-titulo:                     .asciz "Simulador de elevador\n"
-string_subindo:             .asciz "Subindo...\n"
-string_descendo:            .asciz "Descendo...\n"
-insira_andares:             .asciz "Insira a quantidade de andares: "
-insira_probabilidade:       .asciz "Insira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
-string_pessoas_saindo:      .asciz "%d pessoa(s) saindo do elevador\n"
-string_pessoas_entrando:    .asciz "%d pessoa(s) entrando no elevador\n"
-string_pessoas_no_elevador: .asciz "%d pessoa(s) dentro do elevador\n"
-string_andar_atual:         .asciz "Andar atual: %d\n"
-string_chamada_interna:     .asciz "- Chamada interna ida ao andar: %d\n"
-string_impressao_lista:     .asciz "Lista posicao: %d - %d pessoas\n"
-string_chamadas_externas:   .asciz "%d chamada(s) externa(s) foram feita(s) no andar %d\n"
-formato_int:                .asciz "%d"
-qtd_andares:                .int 0
-qtd_pessoas_elevador:       .int 0
-probabilidade_evento:       .int 0
-direcao:                    .int 0 # SUBINDO (0) ou DESCENDO (1)
-andar_atual:                .int 0
-contador:                   .int 0
-tempo:                      .int 0
-faixa:                      .int 0
-andar_sorteado:             .int 0
-pessoas_sorteadas:          .int 0
-limpabuf:                   .string "%*c"
+divide_tela:                  .asciz "===================================================\n"
+titulo:                       .asciz "Simulador de elevador\n"
+string_subindo:               .asciz "Subindo...\n"
+string_descendo:              .asciz "Descendo...\n"
+insira_andares:               .asciz "Insira a quantidade de andares: "
+insira_probabilidade:         .asciz "Insira a probabilidade (em %) do evento de um andar sorteado ocorrer: "
+string_pessoas_saindo:        .asciz "%d pessoa(s) saindo do elevador\n"
+string_pessoas_entrando:      .asciz "%d pessoa(s) entrando no elevador\n"
+string_pessoas_no_elevador:   .asciz "%d pessoa(s) dentro do elevador\n"
+string_andar_atual:           .asciz "Andar atual: %d\n"
+string_chamada_interna:       .asciz "- Chamada interna ida ao andar: %d\n"
+string_impressao_lista:       .asciz "Lista posicao: %d - %d pessoas\n"
+string_chamadas_externas:     .asciz "%d chamada(s) externa(s) foram feita(s) no andar %d\n"
+string_limite_andares:        .asciz "Erro: quantidade de andares deve ser entre 0 e 50\n"
+string_limite_probabilidade:  .asciz "Erro: probabilidade deve ser entre 0 e 100\n"
+formato_int:                  .asciz "%d"
+qtd_andares:                  .int 0
+qtd_pessoas_elevador:         .int 0
+probabilidade_evento:         .int 0
+direcao:                      .int 0 # SUBINDO (0) ou DESCENDO (1)
+andar_atual:                  .int 0
+contador:                     .int 0
+tempo:                        .int 0
+faixa:                        .int 0
+andar_sorteado:               .int 0
+pessoas_sorteadas:            .int 0
+limpabuf:                     .string "%*c"
 
 
 .section .bss
 
-.lcomm lista_externa, 120
-.lcomm lista_interna, 120
+.lcomm lista_externa, 200
+.lcomm lista_interna, 200
 
 .section .text
 
@@ -121,7 +123,7 @@ existem_chamadas_direcao: # dado uma lista, usa a direção atual e verifica se 
   je subindo # caso verdade, pula para logica adequada
   jmp descendo # do contrario, esta descendo
 
-  subindo:
+  subindo: # verifica andares acima do andar atual
     movl andar_atual, %eax # move andar_atual para eax
     movl qtd_andares, %ecx # move qtd_andares para ecx
     subl %eax, %ecx # subtrai o andar_atual da qtd_andares
@@ -144,32 +146,32 @@ existem_chamadas_direcao: # dado uma lista, usa a direção atual e verifica se 
       loop loop_subindo
       jmp fim_inverte # caso todos andares acima estejam vazios, inverte direção
 
-  descendo:
-    movl andar_atual, %ecx
-    cmpl $0, %ecx
-    je fim_inverte
+  descendo: # verifica andares abaixo do andar atual
+    movl andar_atual, %ecx # move andar_atual para ecx
+    cmpl $0, %ecx # caso esteja no terro
+    je fim_inverte # inverte a direção pois não pode descer mais
 
     loop_descendo:
-      movl %ecx, %edi
-      decl %edi
-      pushl %ecx
-      pushl %ebx
-      pushl %edi
-      call quantidade_pessoas_andar
-      addl $8, %esp
-      popl %ecx
-      cmpl $0, %eax
-      jg fim_prossegue
+      movl %ecx, %edi # move andar_atual para edi
+      decl %edi # decrementa um de edi para começar a validar os andares inferiores
+      pushl %ecx # salva contador do loop
+      pushl %ebx # coloca lista na pilha
+      pushl %edi # coloca andar na pilha
+      call quantidade_pessoas_andar # verifica se existe alguma chamada no andar naquela lista
+      addl $8, %esp # limpa pilha
+      popl %ecx # recupera contador do loop
+      cmpl $0, %eax # caso existam chamadas na direção
+      jg fim_prossegue # faz o jump para prosseguir descendo
 
       loop loop_descendo
-      jmp fim_inverte
+      jmp fim_inverte # do contrário inverte a direção
 
   fim_inverte:
     movl $0, %eax # coloca o 0 como retorno em eax, representando que vai inverter a direção
     popl %ebp
     ret
 
-  fim_prossegue: # coloca o 0 como retorno em eax, representando que vai prosseguir na direção
+  fim_prossegue: # coloca o 1 como retorno em eax, representando que vai prosseguir na direção
     movl $1, %eax
     popl %ebp
     ret
@@ -177,76 +179,76 @@ existem_chamadas_direcao: # dado uma lista, usa a direção atual e verifica se 
 
 verifica_chamadas_relativas: # dado a direção do elevador, verifica se o ele prossegue na mesma direção
 
-  pushl $lista_externa
-  call existem_chamadas_direcao
-  addl $4, %esp
-  cmpl $1, %eax
-  je prossegue_retorna
+  pushl $lista_externa # verifica se existem chamadas na direção
+  call existem_chamadas_direcao # através lista externa
+  addl $4, %esp # limpa pilha
+  cmpl $1, %eax # 1 no retorno representa que existem chamadas portanto não
+  je prossegue_retorna # precisa verificar a proxima lista
 
-  pushl $lista_interna
-  call existem_chamadas_direcao
-  addl $4, %esp
-  cmpl $1, %eax
-  je prossegue_retorna
+  pushl $lista_interna # verifica se existem chaamadas na direção
+  call existem_chamadas_direcao # através lista interna
+  addl $4, %esp # limpa pilha
+  cmpl $1, %eax # 1 no retorno representa que existem chamadas
+  je prossegue_retorna # portanto prossegue
 
-  call inverte
-  ret
+  call inverte # caso não existam chamadas em nenhuma das listas
+  ret # dado a direção, inverte ela.
 
   prossegue_retorna:
     call prossegue
     ret
 
-inverte:
-  movl direcao, %eax
-  cmpl $0, %eax
-  je inverte_descer
-  jmp inverte_subir
+inverte: # inverte a direção do elevador incrementa ou decrementa andar
+  movl direcao, %eax # move direcao para eax
+  cmpl $0, %eax # verifica se esta subindo
+  je inverte_descer # caso esteja, jump para rotulo adequado
+  jmp inverte_subir # do contrário, inverte para subir
 
   inverte_descer:
-    cmpl $0, andar_atual
-    je inverte_subir
+    cmpl $0, andar_atual # validação para quando se está no limite inferior
+    je inverte_subir # e não tem nada na direção
     movl $1, direcao # seta direção como descendo
-    movl andar_atual, %eax
-    decl %eax
-    movl %eax, andar_atual
+    movl andar_atual, %eax # move andar_atual para eax
+    decl %eax # decrementa o andar_atual
+    movl %eax, andar_atual # atualiza variavel
     ret
   
   inverte_subir:
-    movl qtd_andares, %edi
-    decl %edi
+    movl qtd_andares, %edi # validação para quando se está no limite superior
+    decl %edi # e não tem nada na direção
     cmpl andar_atual, %edi
-    je inverte_descer
-    movl $0, direcao
-    movl andar_atual, %eax
-    incl %eax
-    movl %eax, andar_atual
+    je inverte_descer # fim validação
+    movl $0, direcao # seta direção como subindo
+    movl andar_atual, %eax # move andar_atual para eax
+    incl %eax # incrementa andar_atual
+    movl %eax, andar_atual # atualiza variavel
     ret
 
-prossegue:
-  movl direcao, %eax
-  cmpl $0, %eax
-  je prossegue_subindo
-  jmp prossegue_descendo
+prossegue: # prossegue na direção que esta indo
+  movl direcao, %eax # move direcao para eax
+  cmpl $0, %eax # verifica se esta subindo
+  je prossegue_subindo # caso verdade, jump para rotulo adequado
+  jmp prossegue_descendo # do contrario, prossegue descendo
 
   prossegue_subindo:
-    movl andar_atual, %eax
-    movl qtd_andares, %edi
-    decl %edi
-    cmpl %edi, %eax
-    je inverte_retorna
-    incl %eax
-    movl %eax, andar_atual
+    movl andar_atual, %eax # move andar_atual para eax
+    movl qtd_andares, %edi # move qtd_andares para edi
+    decl %edi # decrementa um de edi para representar o último andar
+    cmpl %edi, %eax # verifica se esta no ultimo andar
+    je inverte_retorna # caso sim, não pode subir, portanto inverte
+    incl %eax # incrementa andar atual
+    movl %eax, andar_atual # atualiza variavel
     ret
 
   prossegue_descendo:
-    movl andar_atual, %eax
-    cmpl $0, %eax
-    je inverte_retorna
-    decl %eax
-    movl %eax, andar_atual
+    movl andar_atual, %eax # move andar_atual para eax
+    cmpl $0, %eax # verifica se esta no terro
+    je inverte_retorna # caso sim, não pode descer mais, portanto inverte
+    decl %eax # decrementa um andar
+    movl %eax, andar_atual # atualiza variavel
     ret
 
-  inverte_retorna:
+  inverte_retorna: # rotulo para quando é necessário inverter dentro do prossegue
     call inverte
     ret
   
@@ -418,38 +420,61 @@ main:
   call srand # chamada externa ao srand para modifica seed
   addl $4, %esp # limpa pilha
 
-  pushl $divide_tela # insere string divide_tela na pilha
-  call  printf # chamada externa ao printf
+  inicio_leituras:
+    pushl $divide_tela # insere string divide_tela na pilha
+    call  printf # chamada externa ao printf
 
-  pushl $titulo # insere string titulo na pilha
-  call  printf # chamada externa ao printf
+    pushl $titulo # insere string titulo na pilha
+    call  printf # chamada externa ao printf
 
-  addl  $4,  %esp # caminha para o endereço da string divide_tela
-  call printf # chamada externa ao printf
+    addl  $4,  %esp # caminha para o endereço da string divide_tela
+    call printf # chamada externa ao printf
 
-  pushl $insira_andares # insere a string insira_andares na pilha
-  call printf # chamada externa ao printf
+    pushl $insira_andares # insere a string insira_andares na pilha
+    call printf # chamada externa ao printf
+    
+    pushl $qtd_andares # insere váriavel onde a qtd de andares será armazenada
+    pushl $formato_int # insere o formatador de inteiro na pilha
+    call scanf # chamada externa ao scanf
+    cmpl $50, qtd_andares # valida se a quantidade de andares esta
+    jg print_erro_limite_andares # dentro dos limites
+    cmpl $0, qtd_andares
+    jl print_erro_limite_andares # fim validação
 
-  pushl $qtd_andares # insere váriavel onde a qtd de andares será armazenada
-  pushl $formato_int # insere o formatador de inteiro na pilha
-  call scanf # chamada externa ao scanf
+    pushl $insira_probabilidade # insere a string insira_probabilidade na pilha
+    call printf # chamada externa ao printf
 
-  pushl $insira_probabilidade # insere a string insira_probabilidade na pilha
-  call printf # chamada externa ao printf
+    pushl $probabilidade_evento # insere na pilha variável onde a probabilidade sera armazenada
+    pushl $formato_int # insere o formatador de float na pilha
+    call scanf # chamada externa ao scanf
+    cmpl $100, probabilidade_evento # valida se o valor da probabilidade
+    jg print_erro_limite_probabilidade # esta dentro dos limites
+    cmpl $0, probabilidade_evento
+    jl print_erro_limite_probabilidade # fim validação
+    jmp fluxo_sem_erro # vai para fluxo onde validações passaram
 
-  pushl $probabilidade_evento # insere na pilha variável onde a probabilidade sera armazenada
-  pushl $formato_int # insere o formatador de float na pilha
-  call scanf # chamada externa ao scanf
+      print_erro_limite_andares:
+        pushl $string_limite_andares
+        call printf
+        addl $20, %esp # limpa pilha até aquele momento
+        jmp inicio_leituras
 
-  addl $28, %esp # limpa a pilha
+      print_erro_limite_probabilidade:
+        pushl $string_limite_probabilidade
+        call printf
+        addl $20, %esp # limpa pilha até aquele momento
+        jmp inicio_leituras
 
-  movl qtd_andares, %eax
-  incl %eax
-  movl %eax, qtd_andares
+    fluxo_sem_erro:    
+      addl $28, %esp # limpa a pilha
 
-  pushl $limpabuf # limpa o buffer do teclado
-  call scanf # limpa o buffer do teclado
-  addl $4, %esp # limpa o buffer do teclado
+      movl qtd_andares, %eax
+      incl %eax
+      movl %eax, qtd_andares
+
+      pushl $limpabuf # limpa o buffer do teclado
+      call scanf # limpa o buffer do teclado
+      addl $4, %esp # limpa o buffer do teclado
 
   loop_infinito: # rotulo para loop infinito do elevador
 
@@ -473,14 +498,14 @@ main:
     call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
     call verifica_chamadas_relativas # movimenta elevador
 
-    cmpl $0, direcao
-    je print_subindo
-    pushl $string_descendo
-    jmp print_direcao
+    cmpl $0, direcao # verifica se esta subindo
+    je print_subindo # jump para rotulo adequado
+    pushl $string_descendo # do contrario poem string_descendo na pilha
+    jmp print_direcao # pula para o printf
     print_subindo:
-      pushl $string_subindo
+      pushl $string_subindo # coloca string_subindo na pilha
     print_direcao:
-      call printf  
+      call printf  # printa a referida string
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
