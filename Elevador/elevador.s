@@ -311,7 +311,11 @@ verifica_lista_interna: # verifica se alguem precisa sair no andar atual
   movl qtd_pessoas_elevador, %ebx # move qtd_pessoas_elevador para ebx
   subl %edi, %ebx # qtd_pessoas_elevador = qtd_pessoas_elevador - qtd_string_pessoas_saindo
   movl %ebx, qtd_pessoas_elevador # atualiza qtd_pessoas_elevador
-  
+  pushl $lista_interna # coloca argumento na pilha
+  pushl andar_atual # coloca argumento na pilha
+  call zera_pessoas_andar # remove da lista interna todas as pessoas que sairam naquele andar
+  addl $8, %esp
+
   ret # retorna
 
 retorno: # metodo dummy para retornar
