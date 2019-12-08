@@ -358,7 +358,11 @@ calcula_probabilidade:
     movl $0, %eax
     ret
 
-sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
+# faz o sorteio de 1 ou dois andares
+# para cada verifica se deve ser processado com base na probabilidade
+# e sorteia 1 a 3 pessoas para fazerema chamdas externas
+# modifica lista_externa com base nos sorteios de chamadas externas
+sorteia_andares:
   pushl $2 # faixa = 2
   call gera_random # gera um random de 0 a 2 -1
   addl $4, %esp # limpa pilha
