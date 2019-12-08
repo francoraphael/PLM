@@ -10,9 +10,9 @@ string_pessoas_saindo:      .asciz "%d pessoa(s) saindo do elevador\n"
 string_pessoas_entrando:    .asciz "%d pessoa(s) entrando no elevador\n"
 string_pessoas_no_elevador: .asciz "%d pessoa(s) dentro do elevador\n"
 string_andar_atual:         .asciz "Andar atual: %d\n"
-string_chamada_interna:     .asciz "Chamada interna ida ao andar: %d\n"
+string_chamada_interna:     .asciz "- Chamada interna ida ao andar: %d\n"
 string_impressao_lista:     .asciz "Lista posicao: %d - %d pessoas\n"
-string_chamadas_externas:   .asciz "%d chamada(s) externa(s) foram feitas no andar %d\n"
+string_chamadas_externas:   .asciz "%d chamada(s) externa(s) foram feita(s) no andar %d\n"
 formato_int:                .asciz "%d"
 qtd_andares:                .int 0
 qtd_pessoas_elevador:       .int 0
@@ -25,9 +25,7 @@ faixa:                      .int 0
 andar_sorteado:             .int 0
 pessoas_sorteadas:          .int 0
 limpabuf:                   .string "%*c"
-string_debug:               .asciz "Teste: %d\n"
-string_debug_2:             .asciz "Teste: %X\n"
-string_debug_3:		          .asciz "\nTeste"
+
 
 .section .bss
 
@@ -79,23 +77,24 @@ incrementa_andar_na_lista: # na lista recebida incrementa o número de pessoas n
   ret
 
 chamada_lista_interna: # realiza uma chamada aleatória na lista interna
-  movl qtd_andares, %edi # move a quantidade de andares para edi
-  incl %edi # incrementa o edi em uma unidade para corrigir a faixa de randoms
-  pushl %edi # coloca o argumento (faixa) na pilha
-  call gera_random # gera um random em eax
-  addl $4, %esp # limpa a pilha
+  inicio_chamada_lista_interna:
+    pushl qtd_andares # coloca o argumento (faixa) na pilha
+    call gera_random # gera um random em eax
+    addl $4, %esp # limpa a pilha
+    cmpl andar_atual, %eax
+    je inicio_chamada_lista_interna
 
-  pushl %eax # adiciona andar sorteado na pilha
-  pushl $string_chamada_interna # colocar string a ser printada na pilha
-  call printf # chamada externa ao printf
-  addl $4, %esp # limpa a pilha
-  popl %eax # recupera eax
+    pushl %eax # adiciona andar sorteado na pilha
+    pushl $string_chamada_interna # colocar string a ser printada na pilha
+    call printf # chamada externa ao printf
+    addl $4, %esp # limpa a pilha
+    popl %eax # recupera eax
 
-  pushl $lista_interna # adiciona argumento na pilha
-  pushl %eax # adiciona argumento na pilha
-  call incrementa_andar_na_lista # altera a lista interna no andar sorteado
-  addl $8, %esp # limpa a pilha
-  ret
+    pushl $lista_interna # adiciona argumento na pilha
+    pushl %eax # adiciona argumento na pilha
+    call incrementa_andar_na_lista # altera a lista interna no andar sorteado
+    addl $8, %esp # limpa a pilha
+    ret
 
 # params
 # andar, lista
@@ -127,6 +126,8 @@ existem_chamadas_direcao: # dado uma lista, usa a direção atual e verifica se 
     movl qtd_andares, %ecx # move qtd_andares para ecx
     subl %eax, %ecx # subtrai o andar_atual da qtd_andares
     decl %ecx # desconta uma unidade do ecx
+    cmpl $0, %ecx # caso ecx seja zero significa que já está no último andar
+    je fim_inverte # nesse caso inverte a direção
 
     loop_subindo:
       movl andar_atual, %eax # move andar_atual para eax
@@ -144,6 +145,24 @@ existem_chamadas_direcao: # dado uma lista, usa a direção atual e verifica se 
       jmp fim_inverte # caso todos andares acima estejam vazios, inverte direção
 
   descendo:
+    movl andar_atual, %ecx
+    cmpl $0, %ecx
+    je fim_inverte
+
+    loop_descendo:
+      movl %ecx, %edi
+      decl %edi
+      pushl %ecx
+      pushl %ebx
+      pushl %edi
+      call quantidade_pessoas_andar
+      addl $8, %esp
+      popl %ecx
+      cmpl $0, %eax
+      jg fim_prossegue
+
+      loop loop_descendo
+      jmp fim_inverte
 
   fim_inverte:
     movl $0, %eax # coloca o 0 como retorno em eax, representando que vai inverter a direção
@@ -178,8 +197,30 @@ verifica_chamadas_relativas: # dado a direção do elevador, verifica se o ele p
     ret
 
 inverte:
+  movl direcao, %eax
+  cmpl $0, %eax
+  je inverte_descer
+  jmp inverte_subir
 
-  ret
+  inverte_descer:
+    cmpl $0, andar_atual
+    je inverte_subir
+    movl $1, direcao # seta direção como descendo
+    movl andar_atual, %eax
+    decl %eax
+    movl %eax, andar_atual
+    ret
+  
+  inverte_subir:
+    movl qtd_andares, %edi
+    decl %edi
+    cmpl andar_atual, %edi
+    je inverte_descer
+    movl $0, direcao
+    movl andar_atual, %eax
+    incl %eax
+    movl %eax, andar_atual
+    ret
 
 prossegue:
   movl direcao, %eax
@@ -189,7 +230,9 @@ prossegue:
 
   prossegue_subindo:
     movl andar_atual, %eax
-    cmpl qtd_andares, %eax
+    movl qtd_andares, %edi
+    decl %edi
+    cmpl %edi, %eax
     je inverte_retorna
     incl %eax
     movl %eax, andar_atual
@@ -255,16 +298,18 @@ verifica_lista_interna: # verifica se alguem precisa sair no andar atual
   movl andar_atual, %ebx # colocar o valor do andar atual em ebx
   mull %ebx #  calcula o offset em bytes a ser andado na lista
   movl $lista_interna, %edi # move o inicio da lista para edi
-  addl %eax, %edi # caminha na lista interna para o andar atual
-  cmpl $0, (%edi) # verifica se existe alguem que deseja sair naquele andar
-  jle retorno # caso nao exista, sai da funcao
-  movl qtd_pessoas_elevador, %ebx # move qtd_pessoas_elevador para ebx
-  subl (%edi), %ebx # qtd_pessoas_elevador = qtd_pessoas_elevador - qtd_string_pessoas_saindo
-  movl %ebx, qtd_pessoas_elevador # atualiza qtd_pessoas_elevador
+  addl %eax, %edi # caminha na lista interna para o andar atual`
   pushl (%edi) # poem qtd_pessoa_saindo na pilha
   pushl $string_pessoas_saindo # poem string para exibir qtd pessoas saindo na pilha
   call printf # chamada externa printf
-  addl $8, %esp # limpa pilha
+  addl $4, %esp # limpa pilha
+  popl %edi
+  cmpl $0, %edi # verifica se existe alguem que deseja sair naquele andar
+  jle retorno # caso nao exista, sai da funcao
+  movl qtd_pessoas_elevador, %ebx # move qtd_pessoas_elevador para ebx
+  subl %edi, %ebx # qtd_pessoas_elevador = qtd_pessoas_elevador - qtd_string_pessoas_saindo
+  movl %ebx, qtd_pessoas_elevador # atualiza qtd_pessoas_elevador
+  
   ret # retorna
 
 retorno: # metodo dummy para retornar
@@ -285,16 +330,14 @@ gera_random: # gera random com base em uma faixa passada por parametro e retorno
   ret
 
 sorteia_pessoas: # sorteia n de pessoas de 1 a 3 e devolve em eax
-    movl $3, faixa # faixa = 3
-    pushl faixa # faixa na pilha
+    pushl $3 # faixa = 3
     call gera_random # gera um random de 0 a 3 -1
     addl $4, %esp # limpa pilha
     incl %eax # para rand nao ser 0
     ret
 
 calcula_probabilidade:
-  movl $100, faixa
-  pushl faixa
+  pushl $100 # faixa = 100
   call gera_random
   incl %eax
   addl $4, %esp # limpa pilha
@@ -310,8 +353,7 @@ calcula_probabilidade:
     ret
 
 sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
-  movl $2, faixa # faixa = 2
-  pushl faixa # faixa na pilha
+  pushl $2 # faixa = 2
   call gera_random # gera um random de 0 a 2 -1
   addl $4, %esp # limpa pilha
   incl %eax # para rand nao ser 0
@@ -326,14 +368,13 @@ sorteia_andares: # sorteia n de pessoas de 1 a 3 e devolve em eax
     jz nao_calcula
 
     calcula:
-      movl qtd_andares, %ebx # faixa = qtd_andares
-      movl %ebx, faixa # faixa = qtd_andares
-      pushl faixa # faixa na pilha
+      pushl qtd_andares # faixa na pilha
       call gera_random # gera um random de 0 a qtd_andares - 1
       addl $4, %esp # limpa pilha
-      incl %eax # para rand nao ser 0
       
       movl %eax, andar_sorteado # andar_sorteado = andar do sorteio
+      cmpl andar_atual, %eax # se o andar sorteado for o atual
+      je calcula # refaz o sorteio
 
       call sorteia_pessoas # sorteia n de pessoas que fizeram a chamada externa (vao entrar no elevador)
       movl %eax, pessoas_sorteadas
@@ -430,12 +471,20 @@ main:
     addl $8, %esp # limpa pilha
 
     call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
-
     call verifica_chamadas_relativas # movimenta elevador
+
+    cmpl $0, direcao
+    je print_subindo
+    pushl $string_descendo
+    jmp print_direcao
+    print_subindo:
+      pushl $string_subindo
+    print_direcao:
+      call printf  
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
-    addl $4, %esp # limpa pilha
+    addl $8, %esp # limpa pilha
 
     call getchar # para ler o resultado antes o elevador continuar. apertar apenas ENTER
 
