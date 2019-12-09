@@ -11,7 +11,6 @@ string_pessoas_entrando:      .asciz "%d pessoa(s) entrando no elevador\n"
 string_pessoas_no_elevador:   .asciz "%d pessoa(s) dentro do elevador\n"
 string_andar_atual:           .asciz "Andar atual: %d\n"
 string_chamada_interna:       .asciz "- Chamada interna ida ao andar: %d\n"
-string_impressao_lista:       .asciz "Lista posicao: %d - %d pessoas\n"
 string_chamadas_externas:     .asciz "%d chamada(s) externa(s) foram feita(s) no andar %d\n"
 string_limite_andares:        .asciz "Erro: quantidade de andares deve ser entre 0 e 50\n"
 string_limite_probabilidade:  .asciz "Erro: probabilidade deve ser entre 0 e 100\n"
@@ -23,11 +22,9 @@ direcao:                      .int 0 # SUBINDO (0) ou DESCENDO (1)
 andar_atual:                  .int 0
 contador:                     .int 0
 tempo:                        .int 0
-faixa:                        .int 0
 andar_sorteado:               .int 0
 pessoas_sorteadas:            .int 0
 limpabuf:                     .string "%*c"
-
 
 .section .bss
 
