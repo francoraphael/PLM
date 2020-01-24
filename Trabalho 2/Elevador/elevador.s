@@ -32,6 +32,10 @@ andar_sorteado:                            .int 0
 pessoas_sorteadas:                         .int 0
 peso_maximo_elevador:                      .int 0
 qtd_maxima_pessoas_elevador:               .int 0
+peso_max_pessoa:                           .int 180
+peso_min_pessoa:                           .int 35
+idade_max_pessoa:                          .int 100
+idade_min_pessoa:                          .int 5
 
 limpabuf:                     .string "%*c"
 formach:                      .asciz "%c"
@@ -49,9 +53,6 @@ formach:                      .asciz "%c"
 .lcomm lista_externa, 200 # lista de pronteiros (4 Bytes cada posicao)
 
 .section .text
-
-retorna:
-  ret
 
 # Registradores utilizados: eax, ecx
 # Parametros (lista)
@@ -93,6 +94,176 @@ adiciona_pessoa_lista:
     movl %edi, (%edx) 
   popl %ebp
   ret
+
+# Parametros (faixa)
+gera_random: # gera random com base em uma faixa passada por parametro e retorno em %eax
+  pushl %ebp # boilerplate padrão
+  movl %esp, %ebp # boilerplate padrão
+  
+  call rand # gera rand em %eax
+
+  movl 8(%ebp), %edi # recupera faixa
+  movl $0, %edx
+  divl %edi # resto da divisao pela faixa é o rand de 0 até faixa - 1
+  movl %edx, %eax # variavel de retorno #eax
+
+  popl %ebp # devolve %esp original
+  ret
+
+sorteia_n_pessoas: # sorteia n de pessoas de 1 a 3 e devolve em eax
+  pushl $3 # faixa = 3
+  call gera_random # gera um random de 0 a 3 -1
+  addl $4, %esp # limpa pilha
+  incl %eax # para rand nao ser 0
+  ret
+
+sorteia_andar:
+  pushl qtd_andares # faixa na pilha
+  call gera_random # gera um random de 0 a qtd_andares - 1
+  addl $4, %esp # limpa pilha
+  ret
+
+# gera peso para uma pessoa e retorna em %eax
+gera_peso:
+  pushl peso_max_pessoa # peso maximo para uma pessoa
+  call gera_random
+  addl $4, %esp
+
+  movl peso_max_pessoa, %ebx
+  cmpl %ebx, %eax # compara random gerado com peso minimo
+  jg retorna # para nao retornar peso abaixo do minimo
+
+  movl peso_min_pessoa, %eax
+  ret
+
+# gera idade para uma pessoa e retorna em %eax
+gera_idade:
+  pushl idade_max_pessoa # idade maximo para uma pessoa
+  call gera_random
+  addl $4, %esp
+
+  movl idade_min_pessoa, %ebx
+  cmpl %ebx, %eax # compara random gerado com idade minima
+  jg retorna # para nao retornar idade abaixo do minimo
+
+  movl peso_min_pessoa, %eax
+  ret
+
+# gera pessoa e rotorna ponteiro em %eax
+# Parametros (andar_sorteado)
+gera_pessoa:
+  pushl %ebp # boilerplate padrão
+  movl %esp, %ebp # boilerplate padrão
+
+  pushl $16 # aloca memoria para struct pessoa
+  call malloc # aloca memoria para struct pessoa
+  addl $4, %esp # aloca memoria para struct pessoa
+
+  pushl %eax
+  movl %eax, %edi
+
+  movl 8(%ebp), %ebx # recupera andar_sorteado
+  movl %ebx, (%edi) # preenche andar_alvo da pessoa
+
+  pushl %edi
+  call gera_idade # gera idade aleatoria
+  popl %edi
+  addl $4, %edi
+  movl %eax, (%edi) # preenche idade da pessoa
+
+  pushl %edi
+  call gera_peso # gera peso aleatorio
+  popl %edi
+  addl $4, %edi
+  movl %eax, (%edi) # preenche peso da pessoa
+
+  addl $4, %edi
+  movl $-1, (%edi) # preenche proximo com -1 (NULO)
+
+  popl %eax # recupera endereco da pessoa gerada para retorno em %eax
+
+  popl %ebp # devolve %esp original
+  
+  ret
+
+calcula_probabilidade:
+  pushl $100 # faixa = 100
+  call gera_random
+  incl %eax
+  addl $4, %esp # limpa pilha
+
+  cmpl probabilidade_evento, %eax
+  jg falso
+
+  movl $1, %eax
+  ret
+
+  falso:
+    movl $0, %eax
+    ret
+
+# faz o sorteio de 1 ou dois andares
+# para cada verifica se deve ser processado com base na probabilidade
+# e sorteia 1 a 3 pessoas para fazerema chamdas externas
+# modifica lista_externa com base nos sorteios de chamadas externas
+sorteia_andares:
+  pushl $2 # faixa = 2
+  call gera_random # gera um random de 0 a 2 -1
+  addl $4, %esp # limpa pilha
+  incl %eax # para rand nao ser 0
+
+  movl %eax, %ecx
+  verifica_andares:
+    pushl %ecx
+
+    call calcula_probabilidade
+
+    cmpl $0, %eax
+    jz nao_calcula
+
+    calcula:
+      call sorteia_andar
+      movl %eax, andar_sorteado # andar_sorteado = andar do sorteio
+      
+      # cmpl andar_atual, %eax # se o andar sorteado for o atual
+      # je calcula # refaz o sorteio
+
+      call sorteia_n_pessoas # sorteia n de pessoas que fizeram a chamada externa (vao entrar no elevador)
+      movl %eax, pessoas_sorteadas
+
+      movl pessoas_sorteadas, %ecx
+      loop_pessoas:
+        pushl %ecx
+
+        pushl andar_sorteado # empilha andar
+        call gera_pessoa # gera uma pessoa com idade e peso aleatorios
+        pushl %eax  # empilha endereco de memoria da pessoa gerada
+        pushl $lista_externa # empilha lista_externa
+        call adiciona_pessoa_lista # adiciona pessoa gerada na lista_externa
+
+        addl $12, %esp # limpa pilha
+
+        popl %ecx # loop
+        decl %ecx # loop
+        cmpl $0, %ecx # loop
+        jg loop_pessoas # loop
+
+        pushl andar_sorteado # print n pessoas na chamada externa
+        pushl pessoas_sorteadas # print n pessoas na chamada externa
+        pushl $string_chamadas_externas # print n pessoas na chamada externa
+        call printf # print n pessoas na chamada externa
+        addl $12, %esp # print n pessoas na chamada externa
+    
+    nao_calcula:
+      popl %ecx # loop
+      decl %ecx # loop
+      cmpl $0, %ecx # loop
+      jg verifica_andares # loop
+
+  ret
+
+retorna: # metodo dummy para retornar
+  ret # retorna
 
 .globl main
 main:
@@ -174,28 +345,26 @@ main:
       call scanf # limpa o buffer do teclado
       addl $4, %esp # limpa o buffer do teclado
 
+      pushl $lista_interna_elevador1
+      call inicializa_lista
+      addl $4, %esp
+
+      pushl $lista_interna_elevador2
+      call inicializa_lista
+      addl $4, %esp
+
+      pushl $lista_externa
+      call inicializa_lista
+      addl $4, %esp
+
   loop_infinito: # rotulo para loop infinito do elevador
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
     addl $4, %esp # limpa pilha
+    
+    call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
 
-    pushl $lista_interna_elevador1
-    call inicializa_lista
-    addl $4, %esp
-
-    pushl $20
-    call malloc
-
-    movl $3, (%eax)
-    pushl %eax
-    pushl $lista_interna_elevador1
-    call adiciona_pessoa_lista
-    addl $8, %esp
-
-    movl $lista_interna_elevador1, %eax
-    addl $12, %eax
-
-    # DESENVOLVER AQUI
+    # DESENVOLVER A PARTIR DE AQUI
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
