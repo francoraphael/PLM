@@ -30,6 +30,7 @@ contador:                                  .int 0
 tempo:                                     .int 0
 andar_sorteado:                            .int 0
 pessoas_sorteadas:                         .int 0
+pessoas_entrando:                          .int 0
 peso_max_pessoa:                           .int 180
 peso_min_pessoa:                           .int 35
 idade_max_pessoa:                          .int 100
@@ -78,23 +79,23 @@ inicializa_lista:
 # Parametros (andar, lista)
 encontra_pessoa_mais_velha:
   pushl %ebp
-  movl %ebp, %esp
-  pushl 8(%ebp) # coloca andar na pilha
+  movl %esp, %ebp
   pushl 12(%ebp) # coloca lista na pilha
+  pushl 8(%ebp) # coloca andar na pilha
   call caminha_na_lista # retorna em eax endereço do andar
   addl $8, %esp # limpa pilha
   movl $0, %edx # coloca primeiro valor de comparação em edx
-  movl (%eax), %edi # move valor do endereço de retorno para edi
+  movl (%eax), %edi # move valor endereco pessoa para edi
   verifica_fim_encontra_pessoa_mais_velha:
     cmpl $-1, (%eax) # verifica se mais pessoas a verificar
     je fim_encontra_pessoa_mais_velha 
   loop_encontra_pessoa_mais_velha:
     movl (%eax), %eax # move o endereço da pessoa para eax
-    movl 4(%eax), %ecx # move o endereco de idade para ecx
-    cmpl (%ecx), %edx # verifica se a idade no contador já é a mais velha
+    movl 4(%eax), %ecx # move a idade para ecx
+    cmpl %ecx, %edx # verifica se a idade no contador já é a mais velha
     jg loop_ou_fim_encontra_pessoa_mais_velha
-    movl %eax, %edi # move o endereço da pessoa mais velha para eax
-    movl (%ecx), %edx # move a idade da pessoa mais velha para edx
+    movl %eax, %edi # move o endereço da pessoa mais velha para edi
+    movl %ecx, %edx # move a idade da pessoa mais velha para edx
   loop_ou_fim_encontra_pessoa_mais_velha:
     addl $12, %eax # move para o campo próximo
     jmp verifica_fim_encontra_pessoa_mais_velha
@@ -107,9 +108,10 @@ encontra_pessoa_mais_velha:
 remove_pessoa_lista:
   pushl %ebp
   movl %esp, %ebp
-  movl 8(%ebp), %edx # cola pessoa em edx
-  pushl (%edx) # coloca andar_alvo na pilha
+  movl 8(%ebp), %edx # colaca pessoa em edx
   pushl 12(%ebp) # coloca lista na pilha
+  pushl (%edx) # coloca andar_alvo na pilha
+  teste2:
   call caminha_na_lista # retorna em eax endereco do andar
   addl $8, %esp # limpa pilha
   movl 8(%ebp), %edx # coloca pessoa em edx
@@ -186,11 +188,10 @@ gera_peso:
   call gera_random
   addl $4, %esp
 
-  movl peso_max_pessoa, %ebx
+  movl peso_min_pessoa, %ebx
   cmpl %ebx, %eax # compara random gerado com peso minimo
-  jg retorna # para nao retornar peso abaixo do minimo
+  jl gera_peso # para nao retornar peso abaixo do minimo
 
-  movl peso_min_pessoa, %eax
   ret
 
 # gera idade para uma pessoa e retorna em %eax
@@ -323,16 +324,16 @@ retorna: # metodo dummy para retornar
 # Devolve em eax o endereço de memoria da região do andar
 # Parametros (andar, lista)
 caminha_na_lista:
-    pushl %ebp
-    movl %esp, %ebp
-    movl 8(%ebp), %edi # recupera andar
-    movl 12(%ebp), %ecx # recupera lista
-    movl $4, %eax # tamanho do ponteiro
-    mull %edi
-    addl %eax, %ecx
-    xchg %eax, %ecx # troca para retornar em eax
-    popl %ebp
-    ret
+  pushl %ebp
+  movl %esp, %ebp
+  movl 8(%ebp), %edi # recupera andar
+  movl 12(%ebp), %ecx # recupera lista
+  movl $4, %eax # tamanho do ponteiro
+  mull %edi
+  addl %eax, %ecx
+  xchg %eax, %ecx # troca para retornar em eax
+  popl %ebp
+  ret
 
 # Retorna em eax quantas pessoas sairam da lista
 # Parametros (andar, qtd_pessoas_elevador, peso_atual_elevador, lista_interna)
@@ -379,7 +380,7 @@ verifica_lista_externa:
   pushl 8(%ebp) # colocar o andar na pilha
   call caminha_na_lista # retorna em eax o endereco da lista externa daquele andar
   addl $8, %esp # limpa pilha
-  movl $0, %ecx # move qtd pessoas entraram elevador
+  movl $0, pessoas_entrando # move qtd pessoas entraram elevador
   cmpl $-1, (%eax) # verifica se existe alguem naquele andar na lista externa
   je fim_remocao_lista_externa
   loop_insere_lista_interna:
@@ -389,28 +390,45 @@ verifica_lista_externa:
     pushl $lista_externa # coloca a lista na pilha
     pushl 8(%ebp) # coloca andar na pilha
     call encontra_pessoa_mais_velha # retorna em %eax endereco da pessoa mais velha
+    teste:
     addl $8, %esp # limpa pilha
-    movl 20(%ebp), %edx # coloca peso atual em %edx
-    movl 8(%eax), %edi # coloca endereco do peso da pessoa em edi
-    addl (%edi), %edx # soma peso pessoa ao peso atual
-    cmpl %edx, 24(%ebp)
+    cmpl $-1, %eax
+    je fim_remocao_lista_externa
+    movl 20(%ebp), %edi # coloca peso atual em %edi
+    addl 8(%eax), %edi # soma peso pessoa ao peso atual
+    cmpl %edi, 24(%ebp) # verifica se o peso da pessoa entrando é aceito
     jl fim_remocao_lista_externa
     pushl $lista_externa # coloca a lista na pilha
     pushl %eax # coloca a pessoa na pilha
     call remove_pessoa_lista # remove pessoa da lista externa
     popl %eax # recupera pessoa da pilha
     addl $4, %esp # limpa pilha
+    pushl %eax # salva pessoa
+    pushl qtd_andares # coloca faixa na pilha
+    call gera_random # gera um andar random em eax
+    addl $4, %esp # limpa pilha
+    popl %edi # recupera %eax (pessoa)
+    movl %eax, (%edi) # atualiza o andar sorteado na pessoa
+    xchg %eax, %edi # troca pessoa para %eax
     pushl %eax # coloca pessoa na pilha
     pushl 28(%ebp) # coloca lista_interna na pilha
-    # TODO, mudar andar da pessoa
     call adiciona_pessoa_lista # adiciona pessoa na lista interna
     addl $8, %esp # limpa pilha
+    movl pessoas_entrando, %ecx
+    incl %ecx
+    movl %ecx, pessoas_entrando
     jmp loop_insere_lista_interna
 
   fim_remocao_lista_externa:
-    xchg %ecx, %eax
+    movl pessoas_entrando, %eax
     popl %ebp
     ret
+
+# Retorna 1 se existem chamadas naquela direcao 0 se não
+# Parametros (andar_atual, direcao, lista)
+existem_chamadas_direcao:
+  
+verifica_chamadas_relativas:
 
 
 .globl main
@@ -530,14 +548,23 @@ main:
     call  printf # chamada externa ao printf
     addl $4, %esp # limpa pilha
     
-    call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
+    pushl andar_atual_elevador_1
+    pushl $1
+    pushl string_andar_atual
+    call printf
+    
+    pushl andar_atual_elevador_2
+    pushl $2
+    pushl string_andar_atual
+    call printf
+    addl $24, %esp
 
     pushl $lista_interna_elevador1
     pushl $peso_atual_elevador_1
     pushl $qtd_pessoas_elevador_1
     pushl andar_atual_elevador_1
     call verifica_lista_interna 
-    addl $8, %esp
+    addl $16, %esp
     pushl $1
     pushl %eax
     pushl $string_pessoas_saindo
@@ -549,14 +576,63 @@ main:
     pushl $qtd_pessoas_elevador_2
     pushl andar_atual_elevador_2
     call verifica_lista_interna 
-    addl $8, %esp
+    addl $16, %esp
     pushl $2
     pushl %eax
     pushl $string_pessoas_saindo
     call printf
     addl $12, %esp
 
-    # DESENVOLVER AQUI
+    pushl $lista_interna_elevador1
+    pushl peso_maximo_elevador_1
+    pushl peso_atual_elevador_1
+    pushl qtd_maxima_pessoas_elevador_1
+    pushl qtd_pessoas_elevador_1
+    pushl andar_atual_elevador_1
+    call verifica_lista_externa
+    addl $24, %esp
+
+    pushl $1
+    pushl %eax
+    pushl $string_pessoas_entrando
+    call printf
+    addl $12, %esp
+
+    pushl $lista_interna_elevador2
+    pushl peso_maximo_elevador_2
+    pushl peso_atual_elevador_2
+    pushl qtd_maxima_pessoas_elevador_2
+    pushl qtd_pessoas_elevador_2
+    pushl andar_atual_elevador_2
+    call verifica_lista_externa
+    addl $24, %esp
+
+    pushl $2
+    pushl %eax
+    pushl $string_pessoas_entrando
+    call printf
+    addl $12, %esp
+
+    pushl $1
+    pushl qtd_pessoas_elevador_1 
+    pushl $string_pessoas_no_elevador
+    call printf
+
+    pushl $2
+    pushl qtd_pessoas_elevador_2
+    pushl $string_pessoas_no_elevador
+    call printf
+    addl $24, %esp
+
+    call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
+    
+    pushl lista_interna_elevador1
+    pushl andar_atual_elevador_1
+    call verifica_chamadas_relativas
+
+    pushl lista_interna_elevador2
+    pushl andar_atual_elevador_2
+    call verifica_chamadas_relativas
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
