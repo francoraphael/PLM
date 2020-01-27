@@ -4,6 +4,7 @@ divide_tela:                               .asciz "=============================
 titulo:                                    .asciz "Simulador de elevador\n"
 string_subindo:                            .asciz "Elevador %d Subindo...\n"
 string_descendo:                           .asciz "Elevador %d Descendo...\n"
+string_parado:                             .asciz "Elevador %d Parado...\n"
 insira_andares:                            .asciz "Insira a quantidade de andares: "
 insira_peso_maximo_elevador:               .asciz "Insira o peso maximo do elevador %d: "
 insira_qtd_maxima_pessoas_elevador:        .asciz "Insira a quantidade maxima de pessoas do elevador %d: "
@@ -12,18 +13,19 @@ string_pessoas_saindo:                     .asciz "%d pessoa(s) saindo do elevad
 string_pessoas_entrando:                   .asciz "%d pessoa(s) entrando no elevador %d\n"
 string_pessoas_no_elevador:                .asciz "%d pessoa(s) dentro do elevador %d\n"
 string_andar_atual:                        .asciz "Andar atual elevador %d: %d\n"
-string_chamada_interna:                    .asciz "- Chamada interna elevador %d ida ao andar: %d\n"
+string_chamada_interna:                    .asciz "- Chamada interna ida ao andar: %d\n"
 string_chamadas_externas:                  .asciz "%d chamada(s) externa(s) foram feita(s) no andar %d\n"
 string_limite_andares:                     .asciz "Erro: quantidade de andares deve ser entre 0 e 50\n"
 string_limite_probabilidade:               .asciz "Erro: probabilidade deve ser entre 0 e 100\n"
+string_teste:                              .asciz "Teste"
 formato_int:                               .asciz "%d"
 teste_inicializacao:                       .asciz "Pos %d -> %d\n"
 qtd_andares:                               .int 0
 qtd_pessoas_elevador_1:                    .int 0
 qtd_pessoas_elevador_2:                    .int 0
 probabilidade_evento:                      .int 0
-direcao_elevador1:                         .int 0 # SUBINDO (0) ou DESCENDO (1)
-direcao_elevador2:                         .int 0 # SUBINDO (0) ou DESCENDO (1)
+direcao_elevador1:                         .int 2 # SUBINDO (0) ou DESCENDO (1) ou PARADO (2)
+direcao_elevador2:                         .int 2 # SUBINDO (0) ou DESCENDO (1) ou PARADO (2)
 andar_atual_elevador_1:                    .int 0
 andar_atual_elevador_2:                    .int 0
 contador:                                  .int 0
@@ -408,6 +410,7 @@ verifica_lista_externa:
     call gera_random # gera um andar random em eax
     addl $4, %esp # limpa pilha
     popl %edi # recupera %eax (pessoa)
+    movl %eax, andar_sorteado
     movl %eax, (%edi) # atualiza o andar sorteado na pessoa
     xchg %eax, %edi # troca pessoa para %eax
     pushl %eax # coloca pessoa na pilha
@@ -417,6 +420,10 @@ verifica_lista_externa:
     movl pessoas_entrando, %ecx
     incl %ecx
     movl %ecx, pessoas_entrando
+    pushl andar_sorteado
+    pushl $string_chamada_interna
+    call printf
+    addl $8, %esp
     jmp loop_insere_lista_interna
 
   fim_remocao_lista_externa:
@@ -424,12 +431,139 @@ verifica_lista_externa:
     popl %ebp
     ret
 
-# Retorna 1 se existem chamadas naquela direcao 0 se não
+# Retorna em eax 0 se existe e 1 se não existe
+# Parametros (andar_atual, direcao, lista)
+existem_chamadas_subindo:
+  pushl %ebp
+  movl %esp, %ebp
+  movl 8(%ebp), %ecx # coloca andar atual na pilha
+  movl $1, %edi
+  cmpl qtd_andares, %ecx
+  je fim_existem_chamadas_subindo
+  loop_existem_chamadas_subindo:
+    pushl %ecx # salva ecx
+    pushl 16(%ebp) # lista
+    pushl 8(%ebp) # andar 
+    call caminha_na_lista # retorna em eax endereco do andar
+    addl $8, %esp # limpa pilha 
+    popl %ecx # recupera ecx
+    movl $0, %edi # coloca valor de retorno em %edi
+    cmpl $-1, %eax # verifica se existe alguem naquele andar
+    jne  fim_existem_chamadas_subindo # se tiver, retorna
+  	movl $1, %edi # coloca valor de retorno em %edi 
+    incl %ecx # incrementar andar a ser verificado
+    cmpl qtd_andares, %ecx # verifica se já verificou todos andarem
+    je fim_existem_chamadas_subindo # se sim, encerra
+    jmp loop_existem_chamadas_subindo # se não, continua
+    
+  fim_existem_chamadas_subindo:
+    xchg %edi, %eax
+    popl %ebp
+    ret
+
+# Retorna em eax 1 se existe e 0 se não existe
+# Parametros (andar_atual, direcao, lista)
+existem_chamadas_descendo:
+  pushl %ebp
+  movl %esp, %ebp
+  movl 8(%ebp), %ecx # coloca andar atual na pilha
+  movl $0, %edi
+  cmpl $0, %ecx
+  je fim_existem_chamadas_descendo
+  loop_existem_chamadas_descendo:
+    pushl %ecx # salva ecx
+    pushl 16(%ebp) # lista
+    pushl 8(%ebp) # andar 
+    call caminha_na_lista # retorna em eax endereco do andar
+    addl $8, %esp # limpa pilha 
+    popl %ecx # recupera ecx
+    movl $1, %edi # coloca valor de retorno em %edi
+    cmpl $-1, %eax # verifica se existe alguem naquele andar
+    jne  fim_existem_chamadas_descendo # se tiver, retorna
+  	movl $0, %edi # coloca valor de retorno em %edi 
+    decl %ecx # incrementar andar a ser verificado
+    cmpl $0, %ecx # verifica se já verificou todos andarem
+    je fim_existem_chamadas_descendo # se sim, encerra
+    jmp loop_existem_chamadas_descendo # se não, continua
+    
+  fim_existem_chamadas_descendo:
+    xchg %edi, %eax
+    popl %ebp
+    ret
+
+# SUBINDO (0) ou DESCENDO (1) ou PARADO (2)
+# Retorna em %eax 1 se existem chamadas naquela direcao 0 se não
 # Parametros (andar_atual, direcao, lista)
 existem_chamadas_direcao:
-  
-verifica_chamadas_relativas:
+ pushl %ebp
+ movl %esp, %ebp
+ cmpl $0, 12(%ebp)
+ je fluxo_subindo
+ cmpl $1, 12(%ebp)
+ je fluxo_descendo
 
+ fluxo_subindo:
+  pushl 16(%ebp) # coloca lista na pilha
+  pushl 12(%ebp) # coloca direcao na pilha
+  pushl 8(%ebp) # coloca andar_atual na pilha
+  call existem_chamadas_subindo # retorna em eax: 0 se existe e 1 se não existe
+  cmpl $0, %eax
+  je fim_existem_chamadas_direcao
+  call existem_chamadas_descendo
+  cmpl $1, %eax
+  je fim_existem_chamadas_direcao
+  movl $2, %eax
+  jmp fim_existem_chamadas_direcao
+
+ fluxo_descendo:
+  pushl 16(%ebp)
+  pushl 12(%ebp)
+  pushl 8(%ebp)
+  call existem_chamadas_descendo
+  cmpl $1, %eax
+  je fim_existem_chamadas_direcao
+  call existem_chamadas_subindo
+  cmpl $0, %eax
+  je fim_existem_chamadas_direcao
+  movl $2, %eax
+  jmp fim_existem_chamadas_direcao
+
+fim_existem_chamadas_direcao:
+  addl $12, %esp
+  popl %ebp
+  ret
+
+# Parametros (direcao, andar_atual, n_elevador)
+verifica_direcao_informa:
+  pushl %ebp
+  movl %esp, %ebp
+  movl 12(%ebp), %eax # recupera andar
+  movl 8(%ebp), %edx # recupera direcao
+  teste3:
+  cmpl $0, (%edx) # verifica se esta subindo
+  je adiciona_andar
+  cmpl $2, 8(%ebp)
+
+  remove_andar:
+    decl (%eax)
+    pushl (%eax)
+    pushl $string_descendo
+    jmp fim_verifica_direcao_informa
+
+  mantem_andar:
+    pushl (%eax)
+    pushl $string_parado
+
+  adiciona_andar:
+    incl (%eax)
+    pushl (%eax)
+    pushl $string_subindo
+
+  fim_verifica_direcao_informa:
+    call printf
+    addl $8, %esp
+    popl %ebp
+    ret
 
 .globl main
 main:
@@ -550,12 +684,12 @@ main:
     
     pushl andar_atual_elevador_1
     pushl $1
-    pushl string_andar_atual
+    pushl $string_andar_atual
     call printf
     
     pushl andar_atual_elevador_2
     pushl $2
-    pushl string_andar_atual
+    pushl $string_andar_atual
     call printf
     addl $24, %esp
 
@@ -592,6 +726,10 @@ main:
     call verifica_lista_externa
     addl $24, %esp
 
+    movl qtd_pessoas_elevador_1, %edx
+    addl %eax, %edx
+    movl %edx, qtd_pessoas_elevador_1
+
     pushl $1
     pushl %eax
     pushl $string_pessoas_entrando
@@ -606,6 +744,10 @@ main:
     pushl andar_atual_elevador_2
     call verifica_lista_externa
     addl $24, %esp
+
+    movl qtd_pessoas_elevador_2, %edx
+    addl %eax, %edx
+    movl %edx, qtd_pessoas_elevador_2
 
     pushl $2
     pushl %eax
@@ -626,13 +768,36 @@ main:
 
     call sorteia_andares # faz os sorteios de andares e chamadas externas e modifica lista_externa
     
-    pushl lista_interna_elevador1
+####### VERIFICA DIRECAO E INFORMA ELEVADOR 1 #######
+    pushl $lista_interna_elevador1
+    pushl direcao_elevador1
     pushl andar_atual_elevador_1
-    call verifica_chamadas_relativas
+    call existem_chamadas_direcao
+    addl $12, %esp
+    movl %eax, direcao_elevador1
 
-    pushl lista_interna_elevador2
+    pushl $1
+    pushl $andar_atual_elevador_1
+    pushl $direcao_elevador1
+    call verifica_direcao_informa
+    addl $12, %esp
+###### FIM VERIFICA ELEVADOR 1 #######
+
+####### VERIFICA DIRECAO E INFORMA ELEVADOR 2 #######
+    pushl $lista_interna_elevador2
+    pushl direcao_elevador2
     pushl andar_atual_elevador_2
-    call verifica_chamadas_relativas
+    call existem_chamadas_direcao
+    addl $12, %esp
+    movl %eax, direcao_elevador2
+
+    pushl $2
+    pushl $andar_atual_elevador_2
+    pushl $direcao_elevador2
+    call verifica_direcao_informa
+    addl $12, %esp
+
+###### FIM VERIFICA ELEVADOR 2 #######
 
     pushl $divide_tela # insere string divide_tela na pilha
     call  printf # chamada externa ao printf
